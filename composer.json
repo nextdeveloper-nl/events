@@ -1,0 +1,52 @@
+{
+  "name": "nextdeveloper/events",
+  "description": "NextDeveloper Events Package",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Harun Barış Bulut",
+      "email": "baris.bulut@plusclouds.com"
+    }
+  ],
+  "homepage": "https://github.com/nextdeveloper-nl/events",
+  "support": {
+    "issues": "https://github.com/nextdeveloper-nl/events/issues",
+    "source": "https://github.com/nextdeveloper-nl/events"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "git@github.com:nextdeveloper-nl/events.git"
+    }
+  ],
+  "require": {
+    "php": ">=8.2.0",
+    "league/fractal": "*",
+    "monolog/monolog": "*"
+  },
+  "require-dev": {
+    "illuminate/support": "5.5.*",
+    "illuminate/database": "5.5.*",
+    "illuminate/validation": "5.5.*",
+    "guzzlehttp/guzzle": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "NextDeveloper\\Events\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "NextDeveloper\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "NextDeveloper\\Events\\EventsServiceProvider"
+      ]
+    }
+  },
+  "suggest": {}
+}
