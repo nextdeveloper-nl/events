@@ -6,7 +6,7 @@ We needed this module to create a generic 3rd party integration with various dif
 While creating this module we get the general inspiration from Apache Camel. (Thank you guys!)
 
 # Mechanics
-This module basicly receives the event and checks for the related listeners who is listening this event and triggers them in their own mechanisms. These mechanism can be actions (Laravel Jobs), socket, http(2) and grpc. We will be implementing the "actions" first and then http, socket and in last grpc.
+This module basicly receives the event and checks for the related listeners who is listening this event and triggers them in their own mechanisms. You can basicly think that we will be poking applications all the time. These mechanism can be actions (Laravel Jobs), socket, http(2) and grpc. We will be implementing the "actions" first and then http, socket and in last grpc.
 
 # Idea
 We got the base idea from Apache Camel, however we needed much basit and interactive way to implement Camel to Laravel. So we start with this idea; the idea was to let our customers (or end users) to be able to manage their events by themselves using an IFTT logic. As we will support this feature with a UI, we also would like it to be able to modified in the console. That is why we are managing this in two basic tables;
@@ -15,4 +15,7 @@ We got the base idea from Apache Camel, however we needed much basit and interac
 - events_listeners
 
 ## Events available
-is the list of events that the system can bind
+is the list of events that the and 3rd party can bind
+
+## Events listeners
+is the list of 3rd party application who listens to these events.
