@@ -19,3 +19,11 @@ is the list of events that the and 3rd party can bind
 
 ## Events listeners
 is the list of 3rd party application who listens to these events.
+
+# Planned feature list 
+- [x] Dynamically saving the list of events
+- [x] Triggering Action listeners
+- [ ] Triggering external http listeners
+- [ ] Triggering socket listeners
+- [ ] Receiving external events
+- [ ] Registering external events and binding 3rd party events in return
