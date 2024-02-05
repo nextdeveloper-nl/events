@@ -1,0 +1,13 @@
+POST {{host}}/events/fire
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+```json
+
+{
+  "event": "test",
+  "data": {
+    "message": "Hello, World!"
+  }
+}
+```
