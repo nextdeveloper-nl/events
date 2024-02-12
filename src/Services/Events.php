@@ -21,7 +21,7 @@ class Events
             self::createEvent($eventName);
         }
 
-        $listeners = DB::select('SELECT * FROM events_listeners WHERE event = ?', [$eventName]);
+        $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
 
         if($listeners) {
             $job = $listeners[0]->callback;
@@ -34,7 +34,7 @@ class Events
     {
         // This is a dummy implementation
         try {
-            DB::insert('INSERT INTO events_available (event) VALUES (?)', [$eventName]);
+            DB::insert('INSERT INTO event_available (event) VALUES (?)', [$eventName]);
         } catch (\Exception $e) {
             if($e->getCode() == 23505)
                 return;
@@ -44,7 +44,7 @@ class Events
     public static function listenEvent($event, $job)
     {
         try {
-            DB::insert('INSERT INTO events_listeners (event, callback) VALUES (?, ?)', [$event, $job]);
+            DB::insert('INSERT INTO event_listeners (event, callback) VALUES (?, ?)', [$event, $job]);
         } catch (\Exception $e) {
             if($e->getCode() == 23505)
                 return;
