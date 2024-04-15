@@ -12,9 +12,16 @@ use NextDeveloper\Commons\Common\Cache\Traits\CleanCache;
 use NextDeveloper\Commons\Database\Traits\Taggable;
 
 /**
- * Class Availables.
+ * Availables model.
  *
- * @package NextDeveloper\Events\Database\Models
+ * @package  NextDeveloper\Events\Database\Models
+ * @property integer $id
+ * @property string $uuid
+ * @property string $event
+ * @property string $description
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ * @property \Carbon\Carbon $deleted_at
  */
 class Availables extends Model
 {
@@ -31,6 +38,11 @@ class Availables extends Model
      @var array
      */
     protected $guarded = [];
+
+    protected $fillable = [
+            'event',
+            'description',
+    ];
 
     /**
       Here we have the fulltext fields. We can use these for fulltext search if enabled.
@@ -119,6 +131,9 @@ class Availables extends Model
     }
 
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
+
+
+
 
 
 }
