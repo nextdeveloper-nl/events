@@ -5,6 +5,7 @@ Route::prefix('events')->group(
         Route::prefix('available')->group(
             function () {
                 Route::get('/', 'Available\AvailableController@index');
+                Route::get('/actions', 'Available\AvailableController@getActions');
 
                 Route::get('{event_available}/tags ', 'Available\AvailableController@tags');
                 Route::post('{event_available}/tags ', 'Available\AvailableController@saveTags');
@@ -15,6 +16,8 @@ Route::prefix('events')->group(
                 Route::get('/{event_available}', 'Available\AvailableController@show');
 
                 Route::post('/', 'Available\AvailableController@store');
+                Route::post('/{event_available}/do/{action}', 'Available\AvailableController@doAction');
+
                 Route::patch('/{event_available}', 'Available\AvailableController@update');
                 Route::delete('/{event_available}', 'Available\AvailableController@destroy');
             }
@@ -23,6 +26,7 @@ Route::prefix('events')->group(
         Route::prefix('listeners')->group(
             function () {
                 Route::get('/', 'Listeners\ListenersController@index');
+                Route::get('/actions', 'Listeners\ListenersController@getActions');
 
                 Route::get('{event_listeners}/tags ', 'Listeners\ListenersController@tags');
                 Route::post('{event_listeners}/tags ', 'Listeners\ListenersController@saveTags');
@@ -33,6 +37,8 @@ Route::prefix('events')->group(
                 Route::get('/{event_listeners}', 'Listeners\ListenersController@show');
 
                 Route::post('/', 'Listeners\ListenersController@store');
+                Route::post('/{event_listeners}/do/{action}', 'Listeners\ListenersController@doAction');
+
                 Route::patch('/{event_listeners}', 'Listeners\ListenersController@update');
                 Route::delete('/{event_listeners}', 'Listeners\ListenersController@destroy');
             }
@@ -51,8 +57,11 @@ Route::prefix('events')->group(
 
 
 
+
+
     }
 );
+
 
 
 

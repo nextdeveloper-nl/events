@@ -601,5 +601,13 @@ return [
         return NextDeveloper\Events\Database\Models\EventListener::findByRef($value);
 },
 
+'eventavailable' => function ($value) {
+        return NextDeveloper\Events\Database\Models\EventAvailable::findByRef($value);
+},
+
+'eventlistener' => function ($value) {
+        return NextDeveloper\Events\Database\Models\EventListener::findByRef($value);
+},
+
 // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
 ];
