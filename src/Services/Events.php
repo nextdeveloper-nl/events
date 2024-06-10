@@ -15,6 +15,7 @@ class Events
 
     public static function fire(string $eventName, Model $model)
     {
+        if(config('leo.debug.event_listener'))
         Log::info('[EventListener] This event is triggered: ' . $eventName);
 
         if(config('events.general.save_events')) {
