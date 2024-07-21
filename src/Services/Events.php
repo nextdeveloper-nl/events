@@ -35,7 +35,7 @@ class Events
     {
         // This is a dummy implementation
         try {
-            DB::insert('INSERT INTO event_available (event) VALUES (?)', [$eventName]);
+            DB::insert('INSERT INTO event_available (event) VALUES (?) ON CONFLICT DO NOTHING', [$eventName]);
         } catch (\Exception $e) {
             if($e->getCode() == 23505)
                 return;
