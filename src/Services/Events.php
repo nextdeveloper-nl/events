@@ -16,7 +16,7 @@ class Events
     public static function fire(string $eventName, Model $model)
     {
         if(config('leo.debug.event_listener'))
-        Log::info('[EventListener] This event is triggered: ' . $eventName);
+            Log::info('[EventListener] This event is triggered: ' . $eventName);
 
         if(config('events.general.save_events')) {
             self::createEvent($eventName);
@@ -24,10 +24,16 @@ class Events
 
         $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
 
-        if($listeners) {
-            $job = $listeners[0]->callback;
-            $class = new $job($model);
-            $job::dispatch($model);
+        foreach ($listeners as $listener) {
+            try {
+                $job = $listener->callback;
+                $class = new $job($model);
+                $job::dispatch($model);
+            } catch (\Exception $e) {
+                Log::error(__METHOD__ . ' | We have an exception while firing an event listener: '
+                    . $e->getMessage());
+                Log::error($e->getTraceAsString());
+            }
         }
     }
 
@@ -45,7 +51,7 @@ class Events
     public static function listenEvent($event, $job)
     {
         try {
-            DB::insert('INSERT INTO event_listeners (event, callback) VALUES (?, ?)', [$event, $job]);
+            DB::insert('INSERT INTO event_listeners (event, callback) VALUES (?, ?) ON CONFLICT DO NOTHING', [$event, $job]);
         } catch (\Exception $e) {
             if($e->getCode() == 23505)
                 return;
