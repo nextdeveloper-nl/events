@@ -48,7 +48,7 @@ class Events
                 ]);
 
                 $class = new $job($model, $params);
-                $job::dispatch($model);
+                $job::dispatch($model, $params);
             } catch (\Exception $e) {
                 Log::error(
                     __METHOD__ . ' | We have an exception while firing an event listener: '
