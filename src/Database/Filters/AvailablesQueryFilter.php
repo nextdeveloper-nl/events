@@ -17,15 +17,15 @@ class AvailablesQueryFilter extends AbstractQueryFilter
      * @var Builder
      */
     protected $builder;
-    
+
     public function event($value)
     {
-        return $this->builder->where('event', 'like', '%' . $value . '%');
+        return $this->builder->where('event', 'ilike', '%' . $value . '%');
     }
-    
+
     public function description($value)
     {
-        return $this->builder->where('description', 'like', '%' . $value . '%');
+        return $this->builder->where('description', 'ilike', '%' . $value . '%');
     }
 
     public function createdAtStart($date)

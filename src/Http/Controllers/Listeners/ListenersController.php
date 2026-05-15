@@ -3,14 +3,16 @@
 namespace NextDeveloper\Events\Http\Controllers\Listeners;
 
 use Illuminate\Http\Request;
-use NextDeveloper\Events\Http\Controllers\AbstractController;
 use NextDeveloper\Commons\Http\Response\ResponsableFactory;
-use NextDeveloper\Events\Http\Requests\Listeners\ListenersUpdateRequest;
+use NextDeveloper\Commons\Http\Traits\Addresses;
+use NextDeveloper\Commons\Http\Traits\Tags;
 use NextDeveloper\Events\Database\Filters\ListenersQueryFilter;
 use NextDeveloper\Events\Database\Models\Listeners;
-use NextDeveloper\Events\Services\ListenersService;
+use NextDeveloper\Events\Http\Controllers\AbstractController;
 use NextDeveloper\Events\Http\Requests\Listeners\ListenersCreateRequest;
-use NextDeveloper\Commons\Http\Traits\Tags;use NextDeveloper\Commons\Http\Traits\Addresses;
+use NextDeveloper\Events\Http\Requests\Listeners\ListenersUpdateRequest;
+use NextDeveloper\Events\Services\ListenersService;
+
 class ListenersController extends AbstractController
 {
     private $model = Listeners::class;

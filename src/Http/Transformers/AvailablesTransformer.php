@@ -5,7 +5,6 @@ namespace NextDeveloper\Events\Http\Transformers;
 use Illuminate\Support\Facades\Cache;
 use NextDeveloper\Commons\Common\Cache\CacheHelper;
 use NextDeveloper\Events\Database\Models\Availables;
-use NextDeveloper\Commons\Http\Transformers\AbstractTransformer;
 use NextDeveloper\Events\Http\Transformers\AbstractTransformers\AbstractAvailablesTransformer;
 
 /**

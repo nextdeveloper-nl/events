@@ -3,14 +3,16 @@
 namespace NextDeveloper\Events\Http\Controllers\Availables;
 
 use Illuminate\Http\Request;
-use NextDeveloper\Events\Http\Controllers\AbstractController;
 use NextDeveloper\Commons\Http\Response\ResponsableFactory;
-use NextDeveloper\Events\Http\Requests\Availables\AvailablesUpdateRequest;
+use NextDeveloper\Commons\Http\Traits\Addresses;
+use NextDeveloper\Commons\Http\Traits\Tags;
 use NextDeveloper\Events\Database\Filters\AvailablesQueryFilter;
 use NextDeveloper\Events\Database\Models\Availables;
-use NextDeveloper\Events\Services\AvailablesService;
+use NextDeveloper\Events\Http\Controllers\AbstractController;
 use NextDeveloper\Events\Http\Requests\Availables\AvailablesCreateRequest;
-use NextDeveloper\Commons\Http\Traits\Tags;use NextDeveloper\Commons\Http\Traits\Addresses;
+use NextDeveloper\Events\Http\Requests\Availables\AvailablesUpdateRequest;
+use NextDeveloper\Events\Services\AvailablesService;
+
 class AvailablesController extends AbstractController
 {
     private $model = Availables::class;
