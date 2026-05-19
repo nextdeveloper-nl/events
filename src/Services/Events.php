@@ -25,11 +25,16 @@ class Events
         $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
 
         foreach ($listeners as $listener) {
+            $job = $listener->callback;
+
+            if (!class_exists($job)) {
+                Log::warning('[Events::fire] Listener class not found, skipping: ' . $job);
+                continue;
+            }
+
             try {
-                $job = $listener->callback;
-                $class = new $job($model);
                 $job::dispatch($model);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error(__METHOD__ . ' | We have an exception while firing an event listener: '
                     . $e->getMessage());
                 Log::error($e->getTraceAsString());
