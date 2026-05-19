@@ -40,9 +40,14 @@ class Events
         $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
 
         foreach ($listeners as $listener) {
-            try {
-                $job = $listener->callback;
+            $job = $listener->callback;
 
+            if (!class_exists($job)) {
+                Log::warning('[Events::fire] Listener class not found, skipping: ' . $job);
+                continue;
+            }
+
+            try {
                 $params = array_merge($params, [
                     'event' => $eventName,
                 ]);
