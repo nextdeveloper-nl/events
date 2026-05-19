@@ -2,8 +2,8 @@
 
 namespace NextDeveloper\Events\Services;
 
-use NextDeveloper\Events\Services\AbstractServices\AbstractsListenersService;
 use NextDeveloper\Events\Services\AbstractServices\AbstractListenersService;
+use NextDeveloper\Events\Services\AbstractServices\AbstractsListenersService;
 
 /**
  * This class is responsible from managing the data for Listeners

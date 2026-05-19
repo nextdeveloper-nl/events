@@ -4,7 +4,7 @@ namespace NextDeveloper\Events\Database\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use NextDeveloper\Commons\Database\Filters\AbstractQueryFilter;
-    
+
 
 /**
  * This class automatically puts where clause on database so that use can filter
@@ -17,15 +17,15 @@ class ListenersQueryFilter extends AbstractQueryFilter
      * @var Builder
      */
     protected $builder;
-    
+
     public function event($value)
     {
-        return $this->builder->where('event', 'like', '%' . $value . '%');
+        return $this->builder->where('event', 'ilike', '%' . $value . '%');
     }
-    
+
     public function callback($value)
     {
-        return $this->builder->where('callback', 'like', '%' . $value . '%');
+        return $this->builder->where('callback', 'ilike', '%' . $value . '%');
     }
 
     public function createdAtStart($date)

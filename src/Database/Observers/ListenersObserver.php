@@ -3,7 +3,6 @@
 namespace NextDeveloper\Events\Database\Observers;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 use NextDeveloper\IAM\Helpers\UserHelper;
 
 /**

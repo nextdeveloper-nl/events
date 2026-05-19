@@ -2,14 +2,13 @@
 
 namespace NextDeveloper\Events\Tests\Database\Models;
 
-use Tests\TestCase;
 use GuzzleHttp\Client;
-use Illuminate\Http\Response;
 use Illuminate\Http\Request;
-use NextDeveloper\Events\Database\Filters\EventAvailableQueryFilter;
-use NextDeveloper\Events\Services\AbstractServices\AbstractEventAvailableService;
+use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
 use League\Fractal\Resource\Collection;
+use NextDeveloper\Events\Database\Filters\EventAvailableQueryFilter;
+use NextDeveloper\Events\Services\AbstractServices\AbstractEventAvailableService;
 
 trait EventAvailableTestTraits
 {
