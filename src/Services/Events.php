@@ -33,7 +33,13 @@ class Events
             }
 
             try {
-                $job::dispatch($model);
+                $params = array_merge($params, [
+                    'event' => $eventName,
+                ]);
+
+                $class = new $job($model, $params);
+
+                $job::dispatch($model, $params);
             } catch (\Throwable $e) {
                 Log::error(__METHOD__ . ' | We have an exception while firing an event listener: '
                     . $e->getMessage());
