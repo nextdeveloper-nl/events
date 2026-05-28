@@ -103,7 +103,10 @@ class EventsServiceProvider extends AbstractServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands(
                 [
-
+                    \NextDeveloper\Events\Console\Commands\NatsListenCommand::class,
+                    \NextDeveloper\Events\Console\Commands\NatsGenerateAuthCommand::class,
+                    \NextDeveloper\Events\Console\Commands\NatsAuthListenerCommand::class,
+                    \NextDeveloper\Events\Console\Commands\NatsKeygenCommand::class,
                 ]
             );
         }
