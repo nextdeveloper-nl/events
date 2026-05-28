@@ -5,6 +5,7 @@ namespace NextDeveloper\Events\Services;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use NextDeveloper\Events\Jobs\NatsPublisherJob;
 
 class Events
 {
@@ -40,6 +41,12 @@ class Events
         $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
 
         $params = ['event' => $eventName];
+
+        // Push the transformed model to the account's NATS subject so browser
+        // clients receive real-time updates without registering a listener.
+        if (config('events.nats.enabled', false)) {
+            NatsPublisherJob::dispatch($model, $params);
+        }
 
         foreach ($listeners as $listener) {
             $job = $listener->callback;

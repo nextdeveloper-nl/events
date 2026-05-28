@@ -10,18 +10,31 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use League\Fractal\Manager;
+use League\Fractal\Resource\Item;
 use NextDeveloper\Events\Services\NatsService;
 
 /**
  * Publishes a model event to NATS so browser clients (via NATS WebSocket)
- * and other subscribers can receive real-time updates.
+ * can receive real-time updates.
  *
- * Subjects published:
- *   account.events.{account_uuid}                        — all events for the account
- *   account.events.{account_uuid}.{model_slug}           — filtered by model type
+ * Published subject:
+ *   client.{account_uuid}.evt
  *
- * Register this job as a listener via:
- *   Events::listen('updated:NextDeveloper\IAAS\ComputeMembers', NatsPublisherJob::class);
+ * Payload:
+ *   {
+ *     "event":       "created:NextDeveloper\IAAS\VirtualMachines",
+ *     "object_type": "NextDeveloper\IAAS\Database\Models\VirtualMachines",
+ *     "object":      { ...transformer output... }
+ *   }
+ *
+ * The transformer is resolved automatically from the model class name:
+ *   NextDeveloper\IAAS\Database\Models\VirtualMachines
+ *   → NextDeveloper\IAAS\Http\Transformers\VirtualMachinesTransformer
+ *
+ * Falls back to toArray() if no transformer exists for the model.
+ *
+ * Dispatched automatically by Events::fire() when NATS is enabled.
  */
 class NatsPublisherJob implements ShouldQueue
 {
@@ -48,25 +61,55 @@ class NatsPublisherJob implements ShouldQueue
 
         $payload = $this->buildPayload($accountUuid);
 
-        // Broad subject — browser subscribes to this for all account events
-        $nats->publish("account.events.{$accountUuid}", $payload);
+        $nats->publish("client.{$accountUuid}.evt", $payload);
 
-        // Narrower subject — allows filtering by model type
-        $modelSlug = $this->modelSlug();
-        $nats->publish("account.events.{$accountUuid}.{$modelSlug}", $payload);
+        Log::debug('[NatsPublisherJob] Published', [
+            'subject' => "client.{$accountUuid}.evt",
+            'event'   => $this->params['event'] ?? null,
+            'model'   => class_basename($this->model),
+        ]);
     }
 
     private function buildPayload(string $accountUuid): array
     {
         return [
-            'event'        => $this->params['event'] ?? null,
-            'model'        => class_basename($this->model),
-            'model_class'  => get_class($this->model),
-            'uuid'         => $this->model->uuid ?? null,
-            'account_uuid' => $accountUuid,
-            'data'         => $this->model->toArray(),
-            'fired_at'     => now()->toIso8601String(),
+            'event'       => $this->params['event'] ?? null,
+            'object_type' => get_class($this->model),
+            'object'      => $this->transformModel(),
         ];
+    }
+
+    private function transformModel(): array
+    {
+        $transformerClass = $this->resolveTransformerClass();
+
+        if ($transformerClass) {
+            try {
+                $manager  = new Manager();
+                $resource = new Item($this->model, new $transformerClass());
+                $data     = $manager->createData($resource)->toArray();
+
+                return $data['data'] ?? $this->model->toArray();
+            } catch (\Throwable $e) {
+                Log::warning('[NatsPublisherJob] Transformer failed, falling back to toArray', [
+                    'transformer' => $transformerClass,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $this->model->toArray();
+    }
+
+    private function resolveTransformerClass(): ?string
+    {
+        $modelClass = get_class($this->model);
+
+        // NextDeveloper\IAAS\Database\Models\VirtualMachines
+        // → NextDeveloper\IAAS\Http\Transformers\VirtualMachinesTransformer
+        $transformerClass = str_replace('Database\\Models\\', 'Http\\Transformers\\', $modelClass) . 'Transformer';
+
+        return class_exists($transformerClass) ? $transformerClass : null;
     }
 
     private function resolveAccountUuid(): ?string
@@ -77,15 +120,8 @@ class NatsPublisherJob implements ShouldQueue
             return null;
         }
 
-        // Use DB directly to avoid pulling the full IAM model dependency
         return DB::table('iam_accounts')
             ->where('id', $accountId)
             ->value('uuid');
-    }
-
-    private function modelSlug(): string
-    {
-        // "NextDeveloper\IAAS\ComputeMembers" → "compute-members"
-        return \Illuminate\Support\Str::kebab(class_basename($this->model));
     }
 }
