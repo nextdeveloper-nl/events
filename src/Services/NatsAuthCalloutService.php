@@ -97,15 +97,24 @@ class NatsAuthCalloutService
         if ($oauthCandidate) {
             $result = $this->resolveOAuthToken($oauthCandidate);
             if ($result) {
-                ['account_uuid' => $accountUuid, 'user_uuid' => $userUuid] = $result;
+                ['account_uuids' => $accountUuids, 'user_uuid' => $userUuid] = $result;
 
-                Log::info('[NatsAuthCallout] Authenticated client', ['account' => $accountUuid]);
+                Log::info('[NatsAuthCallout] Authenticated client', [
+                    'accounts' => $accountUuids,
+                    'user'     => $userUuid,
+                ]);
 
-                return $this->allow($serverNKey, $userNKey, $accountUuid, [
-                    'sub' => [
-                        "client.{$accountUuid}.evt",
-                        "client.{$accountUuid}.{$userUuid}.evt",
-                    ],
+                // Allow the client to subscribe to every account they belong to.
+                // This means an account switch (toggling iam_account_users.is_active)
+                // does not require a NATS reconnect.
+                $subs = [];
+                foreach ($accountUuids as $accountUuid) {
+                    $subs[] = "client.{$accountUuid}.evt";
+                    $subs[] = "client.{$accountUuid}.{$userUuid}.evt";
+                }
+
+                return $this->allow($serverNKey, $userNKey, $accountUuids[0], [
+                    'sub' => $subs,
                     'pub' => [],
                 ]);
             }
@@ -160,6 +169,10 @@ class NatsAuthCalloutService
 
     /**
      * Resolve an OAuth access token against the oauth_access_tokens table.
+     *
+     * Returns all account UUIDs the user belongs to so that account switching
+     * (toggling is_active in iam_account_users) does not require a reconnect —
+     * the client is already permitted on every account's subject.
      */
     private function resolveOAuthToken(string $token): ?array
     {
@@ -173,15 +186,26 @@ class NatsAuthCalloutService
             return null;
         }
 
-        $accountUuid = DB::table('iam_accounts')
-            ->where('id', $row->account_id)
-            ->value('uuid');
-
         $userUuid = DB::table('iam_users')
             ->where('id', $row->user_id)
             ->value('uuid') ?? 'unknown';
 
-        return $accountUuid ? ['account_uuid' => $accountUuid, 'user_uuid' => $userUuid] : null;
+        // Collect all accounts this user is a member of, not just the active one.
+        // This allows the client to subscribe to any account's subject after switching
+        // without needing to reconnect.
+        $accountUuids = DB::table('iam_account_user')
+            ->join('iam_accounts', 'iam_accounts.id', '=', 'iam_account_user.iam_account_id')
+            ->where('iam_account_user.iam_user_id', $row->user_id)
+            ->pluck('iam_accounts.uuid')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($accountUuids)) {
+            return null;
+        }
+
+        return ['account_uuids' => $accountUuids, 'user_uuid' => $userUuid];
     }
 
     private function allow(string $serverNKey, string $userNKey, string $identifier, array $permissions): string
