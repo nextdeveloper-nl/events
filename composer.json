@@ -23,7 +23,8 @@
   "require": {
     "php": ">=8.2.0",
     "league/fractal": "*",
-    "monolog/monolog": "*"
+    "monolog/monolog": "*",
+    "basis-company/nats": "*"
   },
   "require-dev": {
     "illuminate/support": ">=8.0",

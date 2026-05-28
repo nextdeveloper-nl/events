@@ -1,33 +1,116 @@
 # Events
-This module enables our application to work in between external applications and services. To make this available, this module provides two basic feature called; listen and fire. These events will basicly create eventable object and listener object in the database and if any event is fired it will start a new background process to trigger the related external application like IFTT apps etc.
 
-We needed this module to create a generic 3rd party integration with various different services without getting in touch with the customer or the end user.
+This module enables the application to work between external applications and services. It provides two basic features: **listen** and **fire**. Events create eventable and listener objects in the database; when an event fires it starts a background process to trigger the related external application (IFTT-style integrations, NATS messaging, webhooks, etc.).
 
-While creating this module we get the general inspiration from Apache Camel. (Thank you guys!)
+We needed this module to create generic third-party integrations without touching customer or end-user code directly.
 
-# Mechanics
-This module basicly receives the event and checks for the related listeners who is listening this event and triggers them in their own mechanisms. You can basicly think that we will be poking applications all the time. These mechanism can be actions (Laravel Jobs), socket, http(2) and grpc. We will be implementing the "actions" first and then http, socket and in last grpc.
+The general inspiration comes from Apache Camel. (Thank you guys!)
 
-# Idea
-We got the base idea from Apache Camel, however we needed much basit and interactive way to implement Camel to Laravel. So we start with this idea; the idea was to let our customers (or end users) to be able to manage their events by themselves using an IFTT logic. As we will support this feature with a UI, we also would like it to be able to modified in the console. That is why we are managing this in two basic tables;
+## Mechanics
 
-- events_available
-- events_listeners
+This module receives an event, checks for related listeners, and triggers them via their own delivery mechanism. Supported mechanisms: Laravel Jobs (actions), NATS pub/sub, HTTP, WebSocket, gRPC.
 
-## Events available
-is the list of events that the and 3rd party can bind
+## Idea
 
-## Events listeners
-is the list of 3rd party application who listens to these events.
+The idea was to let customers manage their own events using an IFTT-style logic. Events are managed in two core tables:
 
-# Planned feature list 
+- `events_available` — the list of events that third parties can bind to
+- `events_listeners` — the list of third-party applications listening to those events
+
+## NATS Support
+
+This package includes first-class support for [NATS](https://nats.io) — a high-performance messaging system used to orchestrate agents and deliver real-time events to browser clients.
+
+### What it does
+
+- **Agent orchestration** — send commands to compute, storage and network agents over NATS JetStream
+- **Real-time browser events** — push platform events to connected browser clients via NATS WebSocket
+- **Auth callout** — validate every NATS connection against the platform database using NKey-signed JWTs (no static passwords per agent)
+
+### Components
+
+| Component | File | Purpose |
+| --- | --- | --- |
+| `NatsService` | `src/Services/NatsService.php` | Publish and subscribe wrapper |
+| `NatsAuthCalloutService` | `src/Services/NatsAuthCalloutService.php` | Validates credentials, signs auth-response JWTs |
+| `NkeyHelper` | `src/Services/NkeyHelper.php` | Ed25519 NKey encoding and JWT signing |
+| `NatsAuthConfigService` | `src/Services/NatsAuthConfigService.php` | Manages auth config |
+| `NatsListenCommand` | `src/Console/Commands/NatsListenCommand.php` | Long-running NATS subscriber worker |
+| `NatsAuthListenerCommand` | `src/Console/Commands/NatsAuthListenerCommand.php` | Auth callout listener — validates every NATS connection |
+| `NatsKeygenCommand` | `src/Console/Commands/NatsKeygenCommand.php` | Generate NKey pairs for server config |
+| `NatsGenerateAuthCommand` | `src/Console/Commands/NatsGenerateAuthCommand.php` | Generate agent auth tokens |
+
+### Artisan Commands
+
+```bash
+# Start the NATS event subscriber (queue-worker equivalent for NATS)
+php artisan events:nats-listen
+
+# Start the auth callout service (validates every incoming NATS connection)
+php artisan events:nats-auth-listen
+
+# Generate a new NKey pair for nats.conf
+php artisan events:nats-keygen
+
+# Generate an auth token for an agent
+php artisan events:nats-generate-auth
+```
+
+Both `events:nats-listen` and `events:nats-auth-listen` are long-running processes and should be managed by Supervisor alongside the queue worker.
+
+### Required .env Keys
+
+```env
+NATS_ENABLED=true
+NATS_HOST=nats.example.com
+NATS_PORT=4222
+NATS_ACCOUNT_NKEY_PUBLIC=ACSGX...   # Account NKey public key (starts with A)
+NATS_ACCOUNT_NKEY_SEED=SACSG...     # Account NKey seed — never expose this
+NATS_AUTH_SERVICE_PASSWORD=...      # Password for the auth-service NATS user
+NATS_TLS_CA=storage/nats-ca.crt    # CA cert path for TLS verification
+```
+
+### Auth Callout — How It Works
+
+Every client that connects to NATS (agent or browser) is validated in real time by `NatsAuthCalloutService`. The service looks up the token in the database and returns a signed JWT that grants scoped publish/subscribe permissions.
+
+```text
+Client connects to NATS
+  └── NATS sends auth request JWT to $SYS.REQ.USER.AUTH
+        └── NatsAuthListenerCommand receives it
+              └── NatsAuthCalloutService checks:
+                    ├── iaas_compute_members.events_token  → agent.compute permissions
+                    ├── iaas_storage_members.events_token  → agent.storage permissions
+                    ├── iaas_network_members.events_token  → agent.network permissions
+                    └── oauth_access_tokens.id             → client.{account_uuid} permissions
+              └── Returns signed authorization_response JWT
+                    └── NATS allows or rejects the connection
+```
+
+Token revocation is instant — remove or nullify `events_token` in the DB and the agent is rejected on its next connection attempt.
+
+See [docs/nats-auth-callout.md](docs/nats-auth-callout.md) for the full JWT structure specification and implementation details.
+
+### Subject Naming Convention
+
+| Identity | Subscribes to | Publishes to |
+| --- | --- | --- |
+| `agent.compute.{uuid}` | `agent.compute.{uuid}.cmd`, `agent.compute.broadcast`, `agent.broadcast` | `agent.compute.{uuid}.evt` |
+| `agent.storage.{uuid}` | `agent.storage.{uuid}.cmd`, `agent.storage.broadcast`, `agent.broadcast` | `agent.storage.{uuid}.evt` |
+| `agent.network.{uuid}` | `agent.network.{uuid}.cmd`, `agent.network.broadcast`, `agent.broadcast` | `agent.network.{uuid}.evt` |
+| Browser client | `client.{account_uuid}.evt`, `client.{account_uuid}.{user_uuid}.evt` | nothing |
+
+## Planned Feature List
+
 - [x] Dynamically saving the list of events
 - [x] Triggering Action listeners
-- [ ] Triggering external http listeners
+- [x] NATS pub/sub messaging
+- [x] NATS auth callout (per-connection credential validation)
+- [x] Real-time browser events via NATS WebSocket
+- [ ] Triggering external HTTP listeners
 - [ ] Triggering socket listeners
 - [ ] Receiving external events
-- [ ] Registering external events and binding 3rd party events in return
-
+- [ ] Registering external events and binding third-party events in return
 
 ---
 

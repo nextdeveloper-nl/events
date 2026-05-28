@@ -39,6 +39,8 @@ class Events
 
         $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
 
+        $params = ['event' => $eventName];
+
         foreach ($listeners as $listener) {
             $job = $listener->callback;
 
@@ -48,11 +50,6 @@ class Events
             }
 
             try {
-                $params = array_merge($params, [
-                    'event' => $eventName,
-                ]);
-
-                $class = new $job($model, $params);
                 $job::dispatch($model, $params);
             } catch (\Exception $e) {
                 Log::error(
