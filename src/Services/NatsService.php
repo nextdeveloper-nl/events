@@ -77,16 +77,15 @@ class NatsService
     {
         if ($this->client === null) {
             // Only include keys with non-null values — typed properties reject null
-            // Note: basis-company/nats does not support mTLS when server sends tls_required.
-            // The library always calls enableTls(false), skipping client cert.
-            // Authentication is handled via user/pass + auth callout.
             $config = array_filter([
-                'host'      => config('events.nats.server_host', '127.0.0.1'),
-                'port'      => (int) config('events.nats.server_port', 4222),
-                'token'     => config('events.nats.token'),
-                'user'      => config('events.nats.user'),
-                'pass'      => config('events.nats.password'),
-                'tlsCaFile' => self::resolvePath(config('events.nats.tls_ca')),
+                'host'        => config('events.nats.server_host', '127.0.0.1'),
+                'port'        => (int) config('events.nats.server_port', 4222),
+                'token'       => config('events.nats.token'),
+                'user'        => config('events.nats.user'),
+                'pass'        => config('events.nats.password'),
+                'tlsCaFile'   => self::resolvePath(config('events.nats.tls_ca')),
+                'tlsCertFile' => self::resolvePath(config('events.nats.tls_cert')),
+                'tlsKeyFile'  => self::resolvePath(config('events.nats.tls_key')),
             ], fn ($v) => $v !== null && $v !== '');
 
             // Restore port — it could be filtered if it's 0
