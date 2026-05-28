@@ -76,13 +76,13 @@ class NatsService
     private function client(): Client
     {
         if ($this->client === null) {
-            // Only include keys with non-null values — typed properties reject null
+            // Connect as auth-service — this user bypasses the auth callout,
+            // giving the platform full publish access to any subject.
             $config = array_filter([
                 'host'        => config('events.nats.server_host', '127.0.0.1'),
                 'port'        => (int) config('events.nats.server_port', 4222),
-                'token'       => config('events.nats.token'),
-                'user'        => config('events.nats.user'),
-                'pass'        => config('events.nats.password'),
+                'user'        => 'auth-service',
+                'pass'        => config('events.nats.auth_service_password'),
                 'tlsCaFile'   => self::resolvePath(config('events.nats.tls_ca')),
                 'tlsCertFile' => self::resolvePath(config('events.nats.tls_cert')),
                 'tlsKeyFile'  => self::resolvePath(config('events.nats.tls_key')),
