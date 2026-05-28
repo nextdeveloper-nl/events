@@ -77,12 +77,16 @@ class NatsAuthListenerCommand extends Command
         try {
             $client = $this->connect();
 
+            // Queue subscription — only ONE instance handles each auth request when
+            // multiple containers are running. Without this, all instances reply and
+            // NATS receives duplicate responses to the same inbox.
             // The library's processMsg auto-replies with the callback's return value.
             // We MUST return the JWT rather than calling publish() manually — otherwise
             // the library sends a second empty message to the same replyTo, which
             // overwrites the valid JWT and causes NATS to reject the auth response.
-            $client->subscribe(
+            $client->subscribeQueue(
                 '$SYS.REQ.USER.AUTH',
+                'nats-auth-callout',
                 function (\Basis\Nats\Message\Payload $payload, ?string $replyTo) use ($authService) {
                     $requestJwt = $payload->body;
 
