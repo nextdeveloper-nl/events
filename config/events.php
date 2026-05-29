@@ -60,5 +60,34 @@ return [
          *   'agent.heartbeat.*'  => \App\Jobs\Nats\HandleAgentHeartbeat::class,
          */
         'subscribers' => [],
+
+        /**
+         * Events and object types to omit from NATS publishing.
+         *
+         * 'omit_events' — skip publishing when the event name matches.
+         *   Supports exact strings and wildcards (* = any string).
+         *   Event names follow the pattern: "{action}:{namespace}\{Model}"
+         *
+         * Examples:
+         *   'creating:*'                                          — skip all pre-create events
+         *   'saving:*'                                            — skip all pre-save events
+         *   'created:NextDeveloper\IAM\Users'                     — skip this specific event
+         *
+         * 'omit_objects' — skip publishing when the model class matches.
+         *   Use the full model class name.
+         *
+         * Examples:
+         *   'NextDeveloper\IAM\Database\Models\Users'
+         *   'NextDeveloper\Commons\Database\Models\Logs'
+         */
+        'omit_events' => [
+            'creating:*',
+            'saving:*',
+            'deleting:*',
+        ],
+
+        'omit_objects' => [
+            //  'NextDeveloper\\IAAS\\ComputeMemberEvents',
+        ],
     ],
 ];

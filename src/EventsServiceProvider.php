@@ -107,6 +107,7 @@ class EventsServiceProvider extends AbstractServiceProvider
                     \NextDeveloper\Events\Console\Commands\NatsGenerateAuthCommand::class,
                     \NextDeveloper\Events\Console\Commands\NatsAuthListenerCommand::class,
                     \NextDeveloper\Events\Console\Commands\NatsKeygenCommand::class,
+                    \NextDeveloper\Events\Console\Commands\NatsSetupStreamsCommand::class,
                 ]
             );
         }

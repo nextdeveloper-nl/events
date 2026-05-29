@@ -44,7 +44,7 @@ class Events
 
         // Push the transformed model to the account's NATS subject so browser
         // clients receive real-time updates without registering a listener.
-        if (config('events.nats.enabled', false)) {
+        if (config('events.nats.enabled', false) && !self::isOmitted($eventName, $model)) {
             NatsPublisherJob::dispatch($model, $params);
         }
 
@@ -78,5 +78,35 @@ class Events
                 return;
             }
         }
+    }
+
+    /**
+     * Check whether an event should be omitted from NATS publishing.
+     * Matches against events.nats.omit_events (supports * wildcard)
+     * and events.nats.omit_objects (exact model class match).
+     */
+    private static function isOmitted(string $eventName, Model $model): bool
+    {
+        $omitEvents  = config('events.nats.omit_events', []);
+        $omitObjects = config('events.nats.omit_objects', []);
+
+        foreach ($omitEvents as $pattern) {
+            $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/';
+            if (preg_match($regex, $eventName)) {
+                return true;
+            }
+        }
+
+        // Config may use short form (e.g. NextDeveloper\Accounting\Invoices) instead of
+        // the full model class (NextDeveloper\Accounting\Database\Models\Invoices), so we
+        // normalise by stripping \Database\Models\ before comparing.
+        $modelClass       = get_class($model);
+        $normalizedClass  = str_replace('\\Database\\Models\\', '\\', $modelClass);
+
+        if (in_array($modelClass, $omitObjects, true) || in_array($normalizedClass, $omitObjects, true)) {
+            return true;
+        }
+
+        return false;
     }
 }
