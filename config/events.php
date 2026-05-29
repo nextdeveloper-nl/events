@@ -87,7 +87,7 @@ return [
         ],
 
         'omit_objects' => [
-            //  'NextDeveloper\IAM\Database\Models\Users',
+            //  'NextDeveloper\\IAAS\\ComputeMemberEvents',
         ],
     ],
 ];

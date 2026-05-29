@@ -97,7 +97,13 @@ class Events
             }
         }
 
-        if (in_array(get_class($model), $omitObjects, true)) {
+        // Config may use short form (e.g. NextDeveloper\Accounting\Invoices) instead of
+        // the full model class (NextDeveloper\Accounting\Database\Models\Invoices), so we
+        // normalise by stripping \Database\Models\ before comparing.
+        $modelClass       = get_class($model);
+        $normalizedClass  = str_replace('\\Database\\Models\\', '\\', $modelClass);
+
+        if (in_array($modelClass, $omitObjects, true) || in_array($normalizedClass, $omitObjects, true)) {
             return true;
         }
 
