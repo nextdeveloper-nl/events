@@ -122,6 +122,12 @@ class NatsAuthCalloutService
                     $subs[] = "client.{$accountUuid}.{$userUuid}.evt";
                 }
 
+                // Allow the client to subscribe to live telemetry for every VM
+                // that belongs to any of their accounts.
+                foreach ($this->resolveVmUuids($accountUuids) as $vmUuid) {
+                    $subs[] = "vm.{$vmUuid}.telemetry";
+                }
+
                 return $this->allow($serverNKey, $userNKey, $accountUuids[0], [
                     'sub' => $subs,
                     // Scoped JetStream access for VM_TELEMETRY only:
@@ -223,6 +229,29 @@ class NatsAuthCalloutService
         }
 
         return ['account_uuids' => $accountUuids, 'user_uuid' => $userUuid];
+    }
+
+    /**
+     * Return all VM UUIDs belonging to the given accounts.
+     * Used to grant per-VM telemetry subscribe permissions to OAuth clients.
+     */
+    private function resolveVmUuids(array $accountUuids): array
+    {
+        if (empty($accountUuids)) {
+            return [];
+        }
+
+        $accountIds = DB::table('iam_accounts')
+            ->whereIn('uuid', $accountUuids)
+            ->pluck('id');
+
+        return DB::table('iaas_virtual_machines')
+            ->whereIn('iam_account_id', $accountIds)
+            ->whereNull('deleted_at')
+            ->pluck('uuid')
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function allow(string $serverNKey, string $userNKey, string $identifier, array $permissions): string
