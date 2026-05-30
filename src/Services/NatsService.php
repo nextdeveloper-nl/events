@@ -41,8 +41,9 @@ class NatsService
      */
     public function subscribe(string $subject, callable $callback): void
     {
-        $this->client()->subscribe($subject, function (string $message, string $replyTo, string $subject) use ($callback) {
-            $payload = json_decode($message, true) ?? $message;
+        $this->client()->subscribe($subject, function (\Basis\Nats\Message\Payload $message, ?string $replyTo) use ($callback, $subject) {
+            $raw     = (string) $message;
+            $payload = json_decode($raw, true) ?? $raw;
             $callback($payload, $subject, $replyTo ?: null);
         });
     }

@@ -89,6 +89,9 @@ class NatsAuthCalloutService
                     ],
                     'pub' => [
                         "agent.{$type}.{$agent->uuid}.evt",
+                        // Agent publishes telemetry directly to the client-facing subject
+                        // so OAuth clients can subscribe without a platform relay.
+                        "vm.{$agent->uuid}.telemetry",
                     ],
                 ]);
             }
@@ -113,7 +116,7 @@ class NatsAuthCalloutService
                 // Allow the client to subscribe to every account they belong to.
                 // This means an account switch (toggling iam_account_users.is_active)
                 // does not require a NATS reconnect.
-                $subs = [];
+                $subs = ['_INBOX.>'];
                 foreach ($accountUuids as $accountUuid) {
                     $subs[] = "client.{$accountUuid}.evt";
                     $subs[] = "client.{$accountUuid}.{$userUuid}.evt";
@@ -121,7 +124,15 @@ class NatsAuthCalloutService
 
                 return $this->allow($serverNKey, $userNKey, $accountUuids[0], [
                     'sub' => $subs,
-                    'pub' => [],
+                    // Scoped JetStream access for VM_TELEMETRY only:
+                    //   - create/manage a consumer to replay the last 15 minutes
+                    //   - pull messages from the stream
+                    //   - ack delivered messages
+                    'pub' => [
+                        '$JS.API.CONSUMER.CREATE.VM_TELEMETRY.>',
+                        '$JS.API.CONSUMER.MSG.NEXT.VM_TELEMETRY.>',
+                        '$JS.ACK.VM_TELEMETRY.>',
+                    ],
                 ]);
             }
         }
