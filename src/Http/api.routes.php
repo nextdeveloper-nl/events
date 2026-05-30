@@ -44,7 +44,31 @@ Route::prefix('events')->group(
             }
         );
 
+        Route::prefix('agent-commands')->group(
+            function () {
+                Route::get('/', 'AgentCommands\AgentCommandsController@index');
+                Route::get('/actions', 'AgentCommands\AgentCommandsController@getActions');
+
+                Route::get('{event_agent_commands}/tags ', 'AgentCommands\AgentCommandsController@tags');
+                Route::post('{event_agent_commands}/tags ', 'AgentCommands\AgentCommandsController@saveTags');
+                Route::get('{event_agent_commands}/addresses ', 'AgentCommands\AgentCommandsController@addresses');
+                Route::post('{event_agent_commands}/addresses ', 'AgentCommands\AgentCommandsController@saveAddresses');
+
+                Route::get('/{event_agent_commands}/{subObjects}', 'AgentCommands\AgentCommandsController@relatedObjects');
+                Route::get('/{event_agent_commands}', 'AgentCommands\AgentCommandsController@show');
+
+                Route::post('/', 'AgentCommands\AgentCommandsController@store');
+                Route::post('/{event_agent_commands}/do/{action}', 'AgentCommands\AgentCommandsController@doAction');
+
+                Route::patch('/{event_agent_commands}', 'AgentCommands\AgentCommandsController@update');
+                Route::delete('/{event_agent_commands}', 'AgentCommands\AgentCommandsController@destroy');
+            }
+        );
+
         // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
+
+
+
 
 
 
@@ -61,6 +85,7 @@ Route::prefix('events')->group(
 
     }
 );
+
 
 
 

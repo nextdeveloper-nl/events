@@ -10,6 +10,9 @@ use NextDeveloper\Commons\Database\Traits\HasStates;
 use NextDeveloper\Commons\Database\Traits\Taggable;
 use NextDeveloper\Commons\Database\Traits\UuidId;
 use NextDeveloper\Events\Database\Observers\AvailablesObserver;
+use Illuminate\Notifications\Notifiable;
+use NextDeveloper\Commons\Database\Traits\HasObject;
+use NextDeveloper\Commons\Database\Traits\RunAsAdministrator;
 
 /**
  * Availables model.
@@ -25,9 +28,8 @@ use NextDeveloper\Events\Database\Observers\AvailablesObserver;
  */
 class Availables extends Model
 {
-    use Filterable, UuidId, CleanCache, Taggable, HasStates;
+    use Filterable, UuidId, CleanCache, Taggable, HasStates, RunAsAdministrator, HasObject;
     use SoftDeletes;
-
 
     public $timestamps = true;
 
@@ -131,6 +133,7 @@ class Availables extends Model
     }
 
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
+
 
 
 

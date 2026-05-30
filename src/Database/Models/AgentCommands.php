@@ -2,39 +2,48 @@
 
 namespace NextDeveloper\Events\Database\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use NextDeveloper\Commons\Common\Cache\Traits\CleanCache;
-use NextDeveloper\Commons\Database\Traits\Filterable;
 use NextDeveloper\Commons\Database\Traits\HasStates;
-use NextDeveloper\Commons\Database\Traits\Taggable;
-use NextDeveloper\Commons\Database\Traits\UuidId;
-use NextDeveloper\Events\Database\Observers\ListenersObserver;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Model;
+use NextDeveloper\Commons\Database\Traits\Filterable;
+use NextDeveloper\Events\Database\Observers\AgentCommandsObserver;
+use NextDeveloper\Commons\Database\Traits\UuidId;
 use NextDeveloper\Commons\Database\Traits\HasObject;
+use NextDeveloper\Commons\Common\Cache\Traits\CleanCache;
+use NextDeveloper\Commons\Database\Traits\Taggable;
 use NextDeveloper\Commons\Database\Traits\RunAsAdministrator;
 
 /**
- * Listeners model.
+ * AgentCommands model.
  *
  * @package  NextDeveloper\Events\Database\Models
  * @property integer $id
  * @property string $uuid
- * @property string $event
- * @property string $callback
+ * @property string $agent_type
+ * @property string $agent_uuid
+ * @property string $operation
+ * @property $params
+ * @property string $status
+ * @property $result
+ * @property string $error
  * @property integer $iam_account_id
+ * @property integer $iam_user_id
+ * @property \Carbon\Carbon $sent_at
+ * @property \Carbon\Carbon $completed_at
+ * @property \Carbon\Carbon $timeout_at
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property \Carbon\Carbon $deleted_at
  */
-class Listeners extends Model
+class AgentCommands extends Model
 {
     use Filterable, UuidId, CleanCache, Taggable, HasStates, RunAsAdministrator, HasObject;
     use SoftDeletes;
 
     public $timestamps = true;
 
-    protected $table = 'event_listeners';
+    protected $table = 'event_agent_commands';
 
 
     /**
@@ -43,9 +52,18 @@ class Listeners extends Model
     protected $guarded = [];
 
     protected $fillable = [
-            'event',
-            'callback',
+            'agent_type',
+            'agent_uuid',
+            'operation',
+            'params',
+            'status',
+            'result',
+            'error',
             'iam_account_id',
+            'iam_user_id',
+            'sent_at',
+            'completed_at',
+            'timeout_at',
     ];
 
     /**
@@ -69,8 +87,15 @@ class Listeners extends Model
      */
     protected $casts = [
     'id' => 'integer',
-    'event' => 'string',
-    'callback' => 'string',
+    'agent_type' => 'string',
+    'operation' => 'string',
+    'params' => 'array',
+    'status' => 'string',
+    'result' => 'array',
+    'error' => 'string',
+    'sent_at' => 'datetime',
+    'completed_at' => 'datetime',
+    'timeout_at' => 'datetime',
     'created_at' => 'datetime',
     'updated_at' => 'datetime',
     'deleted_at' => 'datetime',
@@ -82,6 +107,9 @@ class Listeners extends Model
      @var array
      */
     protected $dates = [
+    'sent_at',
+    'completed_at',
+    'timeout_at',
     'created_at',
     'updated_at',
     'deleted_at',
@@ -107,7 +135,7 @@ class Listeners extends Model
         parent::boot();
 
         //  We create and add Observer even if we wont use it.
-        parent::observe(ListenersObserver::class);
+        parent::observe(AgentCommandsObserver::class);
 
         self::registerScopes();
     }
@@ -115,7 +143,7 @@ class Listeners extends Model
     public static function registerScopes()
     {
         $globalScopes = config('events.scopes.global');
-        $modelScopes = config('events.scopes.event_listeners');
+        $modelScopes = config('events.scopes.event_agent_commands');
 
         if(!$modelScopes) { $modelScopes = [];
         }
@@ -134,12 +162,10 @@ class Listeners extends Model
         }
     }
 
+    public function accounts() : \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\NextDeveloper\IAM\Database\Models\Accounts::class);
+    }
+    
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
-
-
-
-
-
-
-
 }

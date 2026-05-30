@@ -54,7 +54,7 @@ class AbstractAvailablesTransformer extends AbstractTransformer
      */
     public function transform(Availables $model)
     {
-
+            
         return $this->buildPayload(
             [
             'id'  =>  $model->uuid,
@@ -151,6 +151,7 @@ class AbstractAvailablesTransformer extends AbstractTransformer
         return $this->collection($addresses, new AddressesTransformer());
     }
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
+
 
 
 
