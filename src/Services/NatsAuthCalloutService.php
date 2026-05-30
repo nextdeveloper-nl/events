@@ -10,9 +10,9 @@ use Illuminate\Support\Str;
  * Handles NATS auth callout requests.
  *
  * Called for every incoming NATS connection. Validates the token against:
- *   - iaas_compute_members.events_token  → compute agent
- *   - iaas_storage_members.events_token  → storage agent
- *   - iaas_network_members.events_token  → network agent
+ *   - iaas_compute_members.agent_api_key  → compute agent
+ *   - iaas_storage_members.agent_api_key  → storage agent
+ *   - iaas_network_members.agent_api_key  → network agent
  *   - oauth_access_tokens                → browser / API client
  *
  * Returns a signed authorization_response JWT with scoped subject permissions.
@@ -36,6 +36,7 @@ use Illuminate\Support\Str;
 class NatsAuthCalloutService
 {
     private const AGENT_TABLES = [
+        'iaas_virtual_machines' => 'vm',
         'iaas_compute_members' => 'compute',
         'iaas_storage_members' => 'storage',
         'iaas_network_members' => 'network',
@@ -62,16 +63,18 @@ class NatsAuthCalloutService
             'username'     => $username,
         ]);
 
-        // Check agent tables
+        // Identity is determined solely by which table the credential appears in — the client
+        // does not declare its type. Agent API keys are checked first across all infra tables;
+        // OAuth tokens are the fallback. The first successful lookup wins and sets the identity.
         foreach (self::AGENT_TABLES as $table => $type) {
-            if (!$this->tableHasColumn($table, 'events_token')) {
+            if (!$this->tableHasColumn($table, 'agent_api_key')) {
                 continue;
             }
 
             $agent = DB::table($table)
-                ->whereNotNull('events_token')
+                ->whereNotNull('agent_api_key')
                 ->whereNull('deleted_at')
-                ->where('events_token', $token ?? $username)
+                ->where('agent_api_key', $token ?? $username)
                 ->select(['uuid'])
                 ->first();
 
@@ -93,8 +96,11 @@ class NatsAuthCalloutService
 
         // Check OAuth tokens (browser / API clients).
         // Clients may pass the token as auth_token/pass OR as the username field.
+        // Agent API keys are long opaque strings — not UUIDs. OAuth token IDs are UUIDs
+        // (Laravel Passport). Skipping the DB query for non-UUID credentials avoids a
+        // Postgres "invalid input syntax for type uuid" error and short-circuits the lookup.
         $oauthCandidate = $token ?? $username;
-        if ($oauthCandidate) {
+        if ($oauthCandidate && \Illuminate\Support\Str::isUuid($oauthCandidate)) {
             $result = $this->resolveOAuthToken($oauthCandidate);
             if ($result) {
                 ['account_uuids' => $accountUuids, 'user_uuid' => $userUuid] = $result;
