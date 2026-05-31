@@ -26,7 +26,11 @@ class NatsService
         try {
             $this->client()->publish($subject, json_encode($payload));
         } catch (\Throwable $e) {
-            // Log and swallow — a NATS failure must never break the main request flow
+            // Reset the cached client so the next publish attempt opens a fresh socket
+            // with a low FD number — guards against stream_select() FD_SETSIZE errors
+            // that accumulate in long-running queue worker processes.
+            $this->client = null;
+
             Log::error('[NatsService] Failed to publish', [
                 'subject' => $subject,
                 'error'   => $e->getMessage(),
