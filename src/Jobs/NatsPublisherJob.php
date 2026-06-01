@@ -73,9 +73,17 @@ class NatsPublisherJob implements ShouldQueue
     private function buildPayload(string $accountUuid): array
     {
         return [
-            'event'       => $this->params['event'] ?? null,
-            'object_type' => get_class($this->model),
-            'object'      => $this->transformModel(),
+            'v'          => 1,
+            'id'         => (string) Str::uuid(),
+            'type'       => 'event',
+            'agent_type' => 'platform',
+            'agent_uuid' => $accountUuid,
+            'timestamp'  => time(),
+            'payload'    => [
+                'event'       => $this->params['event'] ?? null,
+                'object_type' => \NextDeveloper\Commons\Helpers\ObjectHelper::getPublicObjectName($this->model),
+                'object'      => $this->transformModel(),
+            ],
         ];
     }
 
