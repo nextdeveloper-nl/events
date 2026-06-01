@@ -10,9 +10,9 @@ use Illuminate\Support\Str;
  * Handles NATS auth callout requests.
  *
  * Called for every incoming NATS connection. Validates the token against:
- *   - iaas_compute_members.events_token  → compute agent
- *   - iaas_storage_members.events_token  → storage agent
- *   - iaas_network_members.events_token  → network agent
+ *   - iaas_compute_members.agent_api_key  → compute agent
+ *   - iaas_storage_members.agent_api_key  → storage agent
+ *   - iaas_network_members.agent_api_key  → network agent
  *   - oauth_access_tokens                → browser / API client
  *
  * Returns a signed authorization_response JWT with scoped subject permissions.
@@ -36,6 +36,7 @@ use Illuminate\Support\Str;
 class NatsAuthCalloutService
 {
     private const AGENT_TABLES = [
+        'iaas_virtual_machines' => 'vm',
         'iaas_compute_members' => 'compute',
         'iaas_storage_members' => 'storage',
         'iaas_network_members' => 'network',
@@ -62,16 +63,18 @@ class NatsAuthCalloutService
             'username'     => $username,
         ]);
 
-        // Check agent tables
+        // Identity is determined solely by which table the credential appears in — the client
+        // does not declare its type. Agent API keys are checked first across all infra tables;
+        // OAuth tokens are the fallback. The first successful lookup wins and sets the identity.
         foreach (self::AGENT_TABLES as $table => $type) {
-            if (!$this->tableHasColumn($table, 'events_token')) {
+            if (!$this->tableHasColumn($table, 'agent_api_key')) {
                 continue;
             }
 
             $agent = DB::table($table)
-                ->whereNotNull('events_token')
+                ->whereNotNull('agent_api_key')
                 ->whereNull('deleted_at')
-                ->where('events_token', $token ?? $username)
+                ->where('agent_api_key', $token ?? $username)
                 ->select(['uuid'])
                 ->first();
 
@@ -86,6 +89,9 @@ class NatsAuthCalloutService
                     ],
                     'pub' => [
                         "agent.{$type}.{$agent->uuid}.evt",
+                        // Agent publishes telemetry directly to the client-facing subject
+                        // so OAuth clients can subscribe without a platform relay.
+                        "vm.{$agent->uuid}.telemetry",
                     ],
                 ]);
             }
@@ -93,8 +99,11 @@ class NatsAuthCalloutService
 
         // Check OAuth tokens (browser / API clients).
         // Clients may pass the token as auth_token/pass OR as the username field.
+        // Agent API keys are long opaque strings — not UUIDs. OAuth token IDs are UUIDs
+        // (Laravel Passport). Skipping the DB query for non-UUID credentials avoids a
+        // Postgres "invalid input syntax for type uuid" error and short-circuits the lookup.
         $oauthCandidate = $token ?? $username;
-        if ($oauthCandidate) {
+        if ($oauthCandidate && \Illuminate\Support\Str::isUuid($oauthCandidate)) {
             $result = $this->resolveOAuthToken($oauthCandidate);
             if ($result) {
                 ['account_uuids' => $accountUuids, 'user_uuid' => $userUuid] = $result;
@@ -107,15 +116,29 @@ class NatsAuthCalloutService
                 // Allow the client to subscribe to every account they belong to.
                 // This means an account switch (toggling iam_account_users.is_active)
                 // does not require a NATS reconnect.
-                $subs = [];
+                $subs = ['_INBOX.>'];
                 foreach ($accountUuids as $accountUuid) {
                     $subs[] = "client.{$accountUuid}.evt";
                     $subs[] = "client.{$accountUuid}.{$userUuid}.evt";
                 }
 
+                // Allow the client to subscribe to live telemetry for every VM
+                // that belongs to any of their accounts.
+                foreach ($this->resolveVmUuids($accountUuids) as $vmUuid) {
+                    $subs[] = "vm.{$vmUuid}.telemetry";
+                }
+
                 return $this->allow($serverNKey, $userNKey, $accountUuids[0], [
                     'sub' => $subs,
-                    'pub' => [],
+                    // Scoped JetStream access for VM_TELEMETRY only:
+                    //   - create/manage a consumer to replay the last 15 minutes
+                    //   - pull messages from the stream
+                    //   - ack delivered messages
+                    'pub' => [
+                        '$JS.API.CONSUMER.CREATE.VM_TELEMETRY.>',
+                        '$JS.API.CONSUMER.MSG.NEXT.VM_TELEMETRY.>',
+                        '$JS.ACK.VM_TELEMETRY.>',
+                    ],
                 ]);
             }
         }
@@ -206,6 +229,29 @@ class NatsAuthCalloutService
         }
 
         return ['account_uuids' => $accountUuids, 'user_uuid' => $userUuid];
+    }
+
+    /**
+     * Return all VM UUIDs belonging to the given accounts.
+     * Used to grant per-VM telemetry subscribe permissions to OAuth clients.
+     */
+    private function resolveVmUuids(array $accountUuids): array
+    {
+        if (empty($accountUuids)) {
+            return [];
+        }
+
+        $accountIds = DB::table('iam_accounts')
+            ->whereIn('uuid', $accountUuids)
+            ->pluck('id');
+
+        return DB::table('iaas_virtual_machines')
+            ->whereIn('iam_account_id', $accountIds)
+            ->whereNull('deleted_at')
+            ->pluck('uuid')
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function allow(string $serverNKey, string $userNKey, string $identifier, array $permissions): string

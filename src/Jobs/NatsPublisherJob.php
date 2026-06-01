@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use League\Fractal\Manager;
 use League\Fractal\Resource\Item;
 use NextDeveloper\Events\Services\NatsService;
@@ -21,11 +22,19 @@ use NextDeveloper\Events\Services\NatsService;
  * Published subject:
  *   client.{account_uuid}.evt
  *
- * Payload:
+ * Payload (standard protocol envelope — see docs/agents/protocol.md):
  *   {
- *     "event":       "created:NextDeveloper\IAAS\VirtualMachines",
- *     "object_type": "NextDeveloper\IAAS\Database\Models\VirtualMachines",
- *     "object":      { ...transformer output... }
+ *     "v":          1,
+ *     "id":         "<uuid>",
+ *     "type":       "event",
+ *     "agent_type": "platform",
+ *     "agent_uuid": "<account_uuid>",
+ *     "timestamp":  1748000000,
+ *     "payload": {
+ *       "event":       "created:NextDeveloper\IAAS\VirtualMachines",
+ *       "object_type": "NextDeveloper\IAAS\Database\Models\VirtualMachines",
+ *       "object":      { ...transformer output... }
+ *     }
  *   }
  *
  * The transformer is resolved automatically from the model class name:

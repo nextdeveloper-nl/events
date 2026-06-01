@@ -23,11 +23,28 @@ class NatsService
             return;
         }
 
+        $encoded = json_encode($payload);
+
         try {
-            $this->client()->publish($subject, json_encode($payload));
+            $this->execute(fn () => $this->client()->publish($subject, $encoded));
+            return;
         } catch (\Throwable $e) {
-            // Log and swallow — a NATS failure must never break the main request flow
-            Log::error('[NatsService] Failed to publish', [
+            // Free the broken socket so the reconnect attempt gets a fresh FD.
+            $this->client = null;
+
+            Log::warning('[NatsService] Publish failed, retrying with fresh connection', [
+                'subject' => $subject,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
+        // Single retry with a freshly opened connection.
+        try {
+            $this->execute(fn () => $this->client()->publish($subject, $encoded));
+        } catch (\Throwable $e) {
+            $this->client = null;
+
+            Log::error('[NatsService] Failed to publish after retry', [
                 'subject' => $subject,
                 'error'   => $e->getMessage(),
             ]);
@@ -41,8 +58,9 @@ class NatsService
      */
     public function subscribe(string $subject, callable $callback): void
     {
-        $this->client()->subscribe($subject, function (string $message, string $replyTo, string $subject) use ($callback) {
-            $payload = json_decode($message, true) ?? $message;
+        $this->client()->subscribe($subject, function (\Basis\Nats\Message\Payload $message, ?string $replyTo) use ($callback, $subject) {
+            $raw     = (string) $message;
+            $payload = json_decode($raw, true) ?? $raw;
             $callback($payload, $subject, $replyTo ?: null);
         });
     }
@@ -53,8 +71,10 @@ class NatsService
     public function reply(string $replyTo, array $payload): void
     {
         try {
-            $this->client()->publish($replyTo, json_encode($payload));
+            $this->execute(fn () => $this->client()->publish($replyTo, json_encode($payload)));
         } catch (\Throwable $e) {
+            $this->client = null;
+
             Log::error('[NatsService] Failed to send reply', [
                 'reply_to' => $replyTo,
                 'error'    => $e->getMessage(),
@@ -70,7 +90,29 @@ class NatsService
      */
     public function process(float $timeout = 0.1): void
     {
-        $this->client()->process($timeout);
+        $this->execute(fn () => $this->client()->process($timeout));
+    }
+
+    /**
+     * Wraps a NATS operation so that PHP E_WARNING emissions from stream_select()
+     * (triggered when open socket FD numbers exceed FD_SETSIZE=1024 in long-running
+     * queue workers) are converted into catchable exceptions instead of silent failures.
+     */
+    private function execute(callable $fn): void
+    {
+        set_error_handler(function (int $errno, string $errstr): bool {
+            if (str_contains($errstr, 'FD_SETSIZE') || str_contains($errstr, 'stream_select')) {
+                throw new \RuntimeException('[NatsService] ' . $errstr, $errno);
+            }
+            // Let all other warnings/errors pass through to the default handler.
+            return false;
+        });
+
+        try {
+            $fn();
+        } finally {
+            restore_error_handler();
+        }
     }
 
     private function client(): Client

@@ -3,33 +3,33 @@
 namespace NextDeveloper\Events\Http\Transformers\AbstractTransformers;
 
 use NextDeveloper\Commons\Database\Models\Addresses;
-use NextDeveloper\Commons\Database\Models\AvailableActions;
 use NextDeveloper\Commons\Database\Models\Comments;
-use NextDeveloper\Commons\Database\Models\Media;
 use NextDeveloper\Commons\Database\Models\Meta;
 use NextDeveloper\Commons\Database\Models\PhoneNumbers;
 use NextDeveloper\Commons\Database\Models\SocialMedia;
-use NextDeveloper\Commons\Database\Models\States;
 use NextDeveloper\Commons\Database\Models\Votes;
-use NextDeveloper\Commons\Http\Transformers\AbstractTransformer;
-use NextDeveloper\Commons\Http\Transformers\AddressesTransformer;
-use NextDeveloper\Commons\Http\Transformers\AvailableActionsTransformer;
-use NextDeveloper\Commons\Http\Transformers\CommentsTransformer;
+use NextDeveloper\Commons\Database\Models\Media;
 use NextDeveloper\Commons\Http\Transformers\MediaTransformer;
-use NextDeveloper\Commons\Http\Transformers\MetaTransformer;
-use NextDeveloper\Commons\Http\Transformers\PhoneNumbersTransformer;
-use NextDeveloper\Commons\Http\Transformers\SocialMediaTransformer;
+use NextDeveloper\Commons\Database\Models\AvailableActions;
+use NextDeveloper\Commons\Http\Transformers\AvailableActionsTransformer;
+use NextDeveloper\Commons\Database\Models\States;
 use NextDeveloper\Commons\Http\Transformers\StatesTransformer;
+use NextDeveloper\Commons\Http\Transformers\CommentsTransformer;
+use NextDeveloper\Commons\Http\Transformers\SocialMediaTransformer;
+use NextDeveloper\Commons\Http\Transformers\MetaTransformer;
 use NextDeveloper\Commons\Http\Transformers\VotesTransformer;
-use NextDeveloper\Events\Database\Models\Listeners;
+use NextDeveloper\Commons\Http\Transformers\AddressesTransformer;
+use NextDeveloper\Commons\Http\Transformers\PhoneNumbersTransformer;
+use NextDeveloper\Events\Database\Models\AgentCommands;
+use NextDeveloper\Commons\Http\Transformers\AbstractTransformer;
 use NextDeveloper\IAM\Database\Scopes\AuthorizationScope;
 
 /**
- * Class ListenersTransformer. This class is being used to manipulate the data we are serving to the customer
+ * Class AgentCommandsTransformer. This class is being used to manipulate the data we are serving to the customer
  *
  * @package NextDeveloper\Events\Http\Transformers
  */
-class AbstractListenersTransformer extends AbstractTransformer
+class AbstractAgentCommandsTransformer extends AbstractTransformer
 {
 
     /**
@@ -48,20 +48,30 @@ class AbstractListenersTransformer extends AbstractTransformer
     ];
 
     /**
-     * @param Listeners $model
+     * @param AgentCommands $model
      *
      * @return array
      */
-    public function transform(Listeners $model)
+    public function transform(AgentCommands $model)
     {
                                                 $iamAccountId = \NextDeveloper\IAM\Database\Models\Accounts::where('id', $model->iam_account_id)->first();
+                                                            $iamUserId = \NextDeveloper\IAM\Database\Models\Users::where('id', $model->iam_user_id)->first();
                         
         return $this->buildPayload(
             [
             'id'  =>  $model->uuid,
-            'event'  =>  $model->event,
-            'callback'  =>  $model->callback,
+            'agent_type'  =>  $model->agent_type,
+            'agent_uuid'  =>  $model->agent_uuid,
+            'operation'  =>  $model->operation,
+            'params'  =>  $model->params,
+            'status'  =>  $model->status,
+            'result'  =>  $model->result,
+            'error'  =>  $model->error,
             'iam_account_id'  =>  $iamAccountId ? $iamAccountId->uuid : null,
+            'iam_user_id'  =>  $iamUserId ? $iamUserId->uuid : null,
+            'sent_at'  =>  $model->sent_at,
+            'completed_at'  =>  $model->completed_at,
+            'timeout_at'  =>  $model->timeout_at,
             'created_at'  =>  $model->created_at,
             'updated_at'  =>  $model->updated_at,
             'deleted_at'  =>  $model->deleted_at,
@@ -69,7 +79,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         );
     }
 
-    public function includeStates(Listeners $model)
+    public function includeStates(AgentCommands $model)
     {
         $states = States::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -78,7 +88,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($states, new StatesTransformer());
     }
 
-    public function includeActions(Listeners $model)
+    public function includeActions(AgentCommands $model)
     {
         $input = get_class($model);
         $input = str_replace('\\Database\\Models', '', $input);
@@ -90,7 +100,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($actions, new AvailableActionsTransformer());
     }
 
-    public function includeMedia(Listeners $model)
+    public function includeMedia(AgentCommands $model)
     {
         $media = Media::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -99,7 +109,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($media, new MediaTransformer());
     }
 
-    public function includeSocialMedia(Listeners $model)
+    public function includeSocialMedia(AgentCommands $model)
     {
         $socialMedia = SocialMedia::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -108,7 +118,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($socialMedia, new SocialMediaTransformer());
     }
 
-    public function includeComments(Listeners $model)
+    public function includeComments(AgentCommands $model)
     {
         $comments = Comments::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -117,7 +127,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($comments, new CommentsTransformer());
     }
 
-    public function includeVotes(Listeners $model)
+    public function includeVotes(AgentCommands $model)
     {
         $votes = Votes::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -126,7 +136,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($votes, new VotesTransformer());
     }
 
-    public function includeMeta(Listeners $model)
+    public function includeMeta(AgentCommands $model)
     {
         $meta = Meta::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -135,7 +145,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($meta, new MetaTransformer());
     }
 
-    public function includePhoneNumbers(Listeners $model)
+    public function includePhoneNumbers(AgentCommands $model)
     {
         $phoneNumbers = PhoneNumbers::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -144,7 +154,7 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($phoneNumbers, new PhoneNumbersTransformer());
     }
 
-    public function includeAddresses(Listeners $model)
+    public function includeAddresses(AgentCommands $model)
     {
         $addresses = Addresses::where('object_type', get_class($model))
             ->where('object_id', $model->id)
@@ -153,11 +163,4 @@ class AbstractListenersTransformer extends AbstractTransformer
         return $this->collection($addresses, new AddressesTransformer());
     }
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
-
-
-
-
-
-
-
 }
