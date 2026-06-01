@@ -5,6 +5,8 @@ namespace NextDeveloper\Events\Services;
 use Basis\Nats\Client;
 use Basis\Nats\Configuration;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use NextDeveloper\Events\Exceptions\AgentTimeoutException;
 
 /**
  * Wraps the NATS client with lazy connection and config-driven setup.
@@ -80,6 +82,51 @@ class NatsService
                 'error'    => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Publish a command to a JetStream subject and block until the agent replies.
+     *
+     * Unlike the native NATS request-reply pattern, this method does NOT set a
+     * NATS replyTo header — that would cause JetStream to respond with a PubAck
+     * instead of the agent's result. Instead, the inbox subject is embedded in
+     * the payload as "reply_to" so the agent can publish its result there directly.
+     *
+     * @param  string $subject   Target subject (e.g. agent.vm.{uuid}.cmd)
+     * @param  array  $payload   Command envelope; "reply_to" will be injected automatically
+     * @param  float  $timeout   Seconds to wait for a reply
+     * @return array             Decoded reply payload from the agent
+     * @throws \NextDeveloper\Events\Exceptions\AgentTimeoutException
+     */
+    public function dispatch(string $subject, array $payload, float $timeout = 10.0): array
+    {
+        $inbox    = '_INBOX.' . Str::uuid()->toString();
+        $result   = null;
+        $deadline = microtime(true) + $timeout;
+
+        // Subscribe to our temporary inbox before publishing
+        $this->client()->subscribe($inbox, function (string $message) use (&$result) {
+            $result = json_decode($message, true) ?? [];
+        });
+
+        // Embed the inbox so the agent knows where to publish the result
+        $payload['reply_to'] = $inbox;
+
+        // Plain publish — no NATS replyTo header, avoids JetStream PubAck
+        $this->client()->publish($subject, json_encode($payload));
+
+        // Poll until the agent replies or we time out
+        while ($result === null && microtime(true) < $deadline) {
+            $this->client()->process(0.1);
+        }
+
+        if ($result === null) {
+            throw new AgentTimeoutException(
+                "Agent did not respond on [{$subject}] within {$timeout}s"
+            );
+        }
+
+        return $result;
     }
 
     /**

@@ -92,6 +92,8 @@ class NatsAuthCalloutService
                         // Agent publishes telemetry directly to the client-facing subject
                         // so OAuth clients can subscribe without a platform relay.
                         "vm.{$agent->uuid}.telemetry",
+                        // Agent needs to publish to temporary inboxes for sync command replies
+                        "_INBOX.>",
                     ],
                 ]);
             }
