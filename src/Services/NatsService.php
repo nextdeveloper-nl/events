@@ -105,8 +105,9 @@ class NatsService
         $deadline = microtime(true) + $timeout;
 
         // Subscribe to our temporary inbox before publishing
-        $this->client()->subscribe($inbox, function (string $message) use (&$result) {
-            $result = json_decode($message, true) ?? [];
+        // The Basis NATS client passes a Payload object, not a raw string
+        $this->client()->subscribe($inbox, function (\Basis\Nats\Message\Payload|string $message) use (&$result) {
+            $result = json_decode((string) $message, true) ?? [];
         });
 
         // Embed the inbox so the agent knows where to publish the result
