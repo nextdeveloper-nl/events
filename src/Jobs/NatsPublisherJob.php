@@ -90,7 +90,7 @@ class NatsPublisherJob implements ShouldQueue
             'timestamp'  => time(),
             'payload'    => [
                 'event'       => $this->params['event'] ?? null,
-                'object_type' => get_class($this->model),
+                'object_type' => \NextDeveloper\Commons\Helpers\ObjectHelper::getPublicObjectName($this->model),
                 'object'      => $this->transformModel(),
             ],
         ];
