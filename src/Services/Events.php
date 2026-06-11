@@ -45,7 +45,11 @@ class Events
         // Push the transformed model to the account's NATS subject so browser
         // clients receive real-time updates without registering a listener.
         if (config('events.nats.enabled', false) && !self::isOmitted($eventName, $model)) {
-            NatsPublisherJob::dispatch($model, $params);
+            try {
+                NatsPublisherJob::dispatch($model, $params);
+            } catch (\Throwable $e) {
+                Log::error('[Events::fire] NATS dispatch failed for ' . $eventName . ': ' . $e->getMessage());
+            }
         }
 
         foreach ($listeners as $listener) {
