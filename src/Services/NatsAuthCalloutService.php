@@ -40,6 +40,7 @@ class NatsAuthCalloutService
         'iaas_compute_members' => 'compute',
         'iaas_storage_members' => 'storage',
         'iaas_network_members' => 'network',
+        's3_servers'           => 's3',
     ];
 
     /**
@@ -81,20 +82,24 @@ class NatsAuthCalloutService
             if ($agent) {
                 Log::info('[NatsAuthCallout] Authenticated agent', ['type' => $type, 'uuid' => $agent->uuid]);
 
+                $pubSubjects = [
+                    "agent.{$type}.{$agent->uuid}.evt",
+                    "_INBOX.>",
+                ];
+
+                // VM agents publish live telemetry to a per-VM client-facing subject
+                // so OAuth browsers can subscribe without a platform relay.
+                if ($type === 'vm') {
+                    $pubSubjects[] = "vm.{$agent->uuid}.telemetry";
+                }
+
                 return $this->allow($serverNKey, $userNKey, $agent->uuid, [
                     'sub' => [
                         "agent.{$type}.{$agent->uuid}.cmd",
                         "agent.{$type}.broadcast",
                         "agent.broadcast",
                     ],
-                    'pub' => [
-                        "agent.{$type}.{$agent->uuid}.evt",
-                        // Agent publishes telemetry directly to the client-facing subject
-                        // so OAuth clients can subscribe without a platform relay.
-                        "vm.{$agent->uuid}.telemetry",
-                        // Agent needs to publish to temporary inboxes for sync command replies
-                        "_INBOX.>",
-                    ],
+                    'pub' => $pubSubjects,
                 ]);
             }
         }
