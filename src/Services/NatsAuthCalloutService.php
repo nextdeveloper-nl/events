@@ -41,6 +41,11 @@ class NatsAuthCalloutService
         'iaas_storage_members' => 'storage',
         'iaas_network_members' => 'network',
         's3_servers'           => 's3',
+        // backup.agent — runs on an arbitrary customer machine, not a pre-provisioned
+        // member row baked with credentials ahead of time. Row is created `pending`
+        // when a registration token is issued, then flips to `active` with a live
+        // agent_api_key once BackupAgentsService::register() consumes the token.
+        's3_backup_agents'     => 'backup',
     ];
 
     /**
