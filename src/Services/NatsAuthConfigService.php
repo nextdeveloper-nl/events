@@ -39,8 +39,9 @@ class NatsAuthConfigService
             $lines[] = '    }';
         }
 
-        // Compute agents
-        $this->appendAgentUsers($lines, 'iaas_compute_members', 'compute');
+        // Compute agents - dedicated agent_api_key, separate from events_token
+        // (which stays scoped to the older XenServer SSH-webhook mechanism)
+        $this->appendAgentUsers($lines, 'iaas_compute_members', 'compute', 'agent_api_key');
 
         // Storage agents
         $this->appendAgentUsers($lines, 'iaas_storage_members', 'storage');
@@ -84,17 +85,17 @@ class NatsAuthConfigService
 
     // -------------------------------------------------------------------------
 
-    private function appendAgentUsers(array &$lines, string $table, string $type): void
+    private function appendAgentUsers(array &$lines, string $table, string $type, string $credentialColumn = 'events_token'): void
     {
-        // Skip if the table doesn't have events_token column
-        if (!$this->tableHasEventsToken($table)) {
+        // Skip if the table doesn't have the credential column
+        if (!$this->tableHasColumn($table, $credentialColumn)) {
             return;
         }
 
         $agents = DB::table($table)
-            ->whereNotNull('events_token')
+            ->whereNotNull($credentialColumn)
             ->whereNull('deleted_at')
-            ->select(['uuid', 'events_token'])
+            ->select(['uuid', $credentialColumn])
             ->get();
 
         if ($agents->isEmpty()) {
@@ -107,7 +108,7 @@ class NatsAuthConfigService
         foreach ($agents as $agent) {
             $lines[] = '    {';
             $lines[] = '      user: "' . $type . '-' . $agent->uuid . '"';
-            $lines[] = '      password: "' . addslashes($agent->events_token) . '"';
+            $lines[] = '      password: "' . addslashes($agent->{$credentialColumn}) . '"';
             $lines[] = '      permissions: {';
             $lines[] = '        subscribe: { allow: [';
             $lines[] = '          "agent.' . $type . '.' . $agent->uuid . '.cmd"';
@@ -122,11 +123,11 @@ class NatsAuthConfigService
         }
     }
 
-    private function tableHasEventsToken(string $table): bool
+    private function tableHasColumn(string $table, string $column): bool
     {
         try {
             $columns = DB::getSchemaBuilder()->getColumnListing($table);
-            return in_array('events_token', $columns, true);
+            return in_array($column, $columns, true);
         } catch (\Throwable) {
             return false;
         }
