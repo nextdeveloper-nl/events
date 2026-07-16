@@ -56,7 +56,7 @@ class AgentCommandsService extends AbstractAgentCommandsService
 
         app(NatsService::class)->publish("agent.{$agentType}.{$agentUuid}.cmd", $envelope);
 
-        self::update($command->id, [
+        self::update($command->uuid, [
             'status'  => 'sent',
             'sent_at' => now(),
         ]);
