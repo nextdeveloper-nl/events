@@ -20,7 +20,7 @@ use NextDeveloper\IAM\Helpers\UserHelper;
  */
 class AbstractAvailablesService
 {
-    public static function get(AvailablesQueryFilter $filter = null, array $params = []) : Collection|LengthAwarePaginator
+    public static function get(?AvailablesQueryFilter $filter = null, array $params = []) : Collection|LengthAwarePaginator
     {
         $enablePaginate = array_key_exists('paginate', $params);
 

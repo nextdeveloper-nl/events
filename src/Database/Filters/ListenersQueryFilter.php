@@ -17,19 +17,19 @@ class ListenersQueryFilter extends AbstractQueryFilter
      * @var Builder
      */
     protected $builder;
-    
+
     public function event($value)
     {
         return $this->builder->where('event', 'ilike', '%' . $value . '%');
     }
 
-        
+
     public function callback($value)
     {
         return $this->builder->where('callback', 'ilike', '%' . $value . '%');
     }
 
-    
+
     public function createdAtStart($date)
     {
         return $this->builder->where('created_at', '>=', $date);
@@ -105,7 +105,7 @@ class ListenersQueryFilter extends AbstractQueryFilter
         }
     }
 
-    
+
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
 
 }
