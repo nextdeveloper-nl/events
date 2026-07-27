@@ -2,7 +2,7 @@
 
 namespace NextDeveloper\Events\Services;
 
-use Illuminate\Support\Str;
+use NextDeveloper\Events\Database\Models\AgentCommands;
 use NextDeveloper\Events\Services\AbstractServices\AbstractAgentCommandsService;
 use NextDeveloper\IAM\Helpers\UserHelper;
 
@@ -21,46 +21,112 @@ class AgentCommandsService extends AbstractAgentCommandsService
     /**
      * Create an agent_commands record, publish the command envelope to NATS, and
      * mark the record as sent. Returns the command UUID for async tracking.
+     *
+     * $iamAccountId/$iamUserId let callers with no authenticated request (queue
+     * jobs, console commands) supply attribution explicitly - e.g. the account/user
+     * that owns the target resource - instead of relying on UserHelper::currentAccount()
+     * /UserHelper::me(), which are null outside an HTTP request context.
      */
     public static function dispatch(
         string $agentType,
         string $agentUuid,
         string $operation,
-        array  $params   = [],
-        int    $timeoutS = 300
+        array  $params      = [],
+        int    $timeoutS    = 300,
+        ?int   $iamAccountId = null,
+        ?int   $iamUserId    = null
     ): string {
-        $command = self::create([
-            'agent_type'    => $agentType,
-            'agent_uuid'    => $agentUuid,
-            'operation'     => $operation,
-            'params'        => $params,
-            'status'        => 'pending',
-            'timeout_at'    => now()->addSeconds($timeoutS),
-            'iam_account_id' => UserHelper::currentAccount()->id,
-            'iam_user_id'   => UserHelper::me()->id,
+        $iamAccountId ??= optional(UserHelper::currentAccount())->id;
+        $iamUserId    ??= optional(UserHelper::me())->id;
+
+        $run = function () use ($agentType, $agentUuid, $operation, $params, $timeoutS, $iamAccountId, $iamUserId) {
+            $command = self::create([
+                'agent_type'     => $agentType,
+                'agent_uuid'     => $agentUuid,
+                'operation'      => $operation,
+                'params'         => $params,
+                'status'         => 'pending',
+                'timeout_at'     => now()->addSeconds($timeoutS),
+                'iam_account_id' => $iamAccountId,
+                'iam_user_id'    => $iamUserId,
+            ]);
+
+            $envelope = [
+                'v'          => 1,
+                'id'         => $command->uuid,
+                'type'       => 'command',
+                'agent_type' => $agentType,
+                'agent_uuid' => $agentUuid,
+                'timestamp'  => time(),
+                'payload'    => [
+                    'operation' => $operation,
+                    'params'    => $params,
+                    'timeout_s' => $timeoutS,
+                ],
+            ];
+
+            app(NatsService::class)->publish("agent.{$agentType}.{$agentUuid}.cmd", $envelope);
+
+            self::update($command->uuid, [
+                'status'  => 'sent',
+                'sent_at' => now(),
+            ]);
+
+            return $command->uuid;
+        };
+
+        // Outside an authenticated request (queue/console), AgentCommandsObserver's
+        // creating/updating hooks would throw NotAllowedException since UserHelper::can()
+        // has no current user to check against - elevate only in that case so existing
+        // HTTP-context callers keep their current (already-authorized) behavior.
+        return UserHelper::me() ? $run() : UserHelper::runAsAdmin($run);
+    }
+
+    /**
+     * This method updated the model from an array.
+     *
+     * Same admin-elevation guard as dispatch() - lets queue/console callers (e.g. the
+     * shared agent-event listener Job) update a command's status without an authenticated
+     * request context.
+     *
+     * @param  array $data
+     * @return mixed
+     */
+    public static function update($id, array $data)
+    {
+        return UserHelper::me()
+            ? parent::update($id, $data)
+            : UserHelper::runAsAdmin(fn () => parent::update($id, $data));
+    }
+
+    /**
+     * Closes out the agent_commands row referenced by a `result` event's payload.
+     * Centralizes logic that was previously copy-pasted in each module's NATS
+     * listener (result lookup by command_id, status/result/error/completed_at update).
+     */
+    public static function completeFromResult(array $resultPayload): ?AgentCommands
+    {
+        $commandUuid = $resultPayload['command_id'] ?? null;
+
+        if (!$commandUuid) {
+            return null;
+        }
+
+        $command = self::getByRef($commandUuid);
+
+        if (!$command) {
+            return null;
+        }
+
+        $status = in_array($resultPayload['status'] ?? null, ['completed', 'failed', 'rejected'], true)
+            ? $resultPayload['status']
+            : 'completed';
+
+        return self::update($command->uuid, [
+            'status'       => $status,
+            'result'       => $resultPayload['output']  ?? [],
+            'error'        => $resultPayload['message'] ?? null,
+            'completed_at' => now(),
         ]);
-
-        $envelope = [
-            'v'          => 1,
-            'id'         => $command->uuid,
-            'type'       => 'command',
-            'agent_type' => $agentType,
-            'agent_uuid' => $agentUuid,
-            'timestamp'  => time(),
-            'payload'    => [
-                'operation' => $operation,
-                'params'    => $params,
-                'timeout_s' => $timeoutS,
-            ],
-        ];
-
-        app(NatsService::class)->publish("agent.{$agentType}.{$agentUuid}.cmd", $envelope);
-
-        self::update($command->uuid, [
-            'status'  => 'sent',
-            'sent_at' => now(),
-        ]);
-
-        return $command->uuid;
     }
 }
