@@ -75,19 +75,29 @@ class AgentCommandsService extends AbstractAgentCommandsService
             return $command->uuid;
         };
 
-        // Outside an authenticated request (queue/console), AgentCommandsObserver's
-        // creating/updating hooks would throw NotAllowedException since UserHelper::can()
-        // has no current user to check against - elevate only in that case so existing
-        // HTTP-context callers keep their current (already-authorized) behavior.
-        return UserHelper::me() ? $run() : UserHelper::runAsAdmin($run);
+        // Writing the event_agent_commands row is a system-triggered side effect of an
+        // already-authorized action (e.g. a member running/pausing/restoring their own
+        // backup job) - the caller was already authorized against the parent resource
+        // (BackupJobs, RestoreJobs, ...), not against event_agent_commands itself. Roles
+        // like member only grant read on most tables, so without bypassing the
+        // create-authorization check here, AgentCommandsObserver's creating() hook would
+        // throw NotAllowedException and abort the whole request. Outside an authenticated
+        // request (queue/console), there's no identity to preserve, so we elevate to the
+        // system user instead via runAsAdmin().
+        return UserHelper::me()
+            ? UserHelper::withRolesCheckBypassed($run)
+            : UserHelper::runAsAdmin($run);
     }
 
     /**
      * This method updated the model from an array.
      *
-     * Same admin-elevation guard as dispatch() - lets queue/console callers (e.g. the
-     * shared agent-event listener Job) update a command's status without an authenticated
-     * request context.
+     * Same reasoning as dispatch(): status updates on a command row (e.g. marking it
+     * 'sent') are a system-triggered side effect of an already-authorized action, so we
+     * bypass the role check rather than requiring event_agent_commands:update on every
+     * role. Outside an authenticated request (queue/console, e.g. the shared agent-event
+     * listener Job), there's no identity to preserve, so we elevate to the system user
+     * instead via runAsAdmin().
      *
      * @param  array $data
      * @return mixed
@@ -95,7 +105,7 @@ class AgentCommandsService extends AbstractAgentCommandsService
     public static function update($id, array $data)
     {
         return UserHelper::me()
-            ? parent::update($id, $data)
+            ? UserHelper::withRolesCheckBypassed(fn () => parent::update($id, $data))
             : UserHelper::runAsAdmin(fn () => parent::update($id, $data));
     }
 
