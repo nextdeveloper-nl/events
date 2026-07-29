@@ -29,6 +29,17 @@ class AgentCommandsQueryFilter extends AbstractQueryFilter
         return $this->agentType($value);
     }
 
+    public function agentUuid($value)
+    {
+        return $this->builder->where('agent_uuid', $value);
+    }
+
+    //  This is an alias function of agentUuid
+    public function agent_uuid($value)
+    {
+        return $this->agentUuid($value);
+    }
+
     public function operation($value)
     {
         return $this->builder->where('operation', 'ilike', '%' . $value . '%');
