@@ -181,6 +181,16 @@ class NatsService
             // Restore port — it could be filtered if it's 0
             $config['port'] = (int) config('events.nats.server_port', 4222);
 
+            // Configuration's own default (1s) is tight for a WAN link doing a
+            // client-cert TLS handshake - occasional latency/broker-load spikes can hit
+            // it even when the broker itself is healthy (e.g. still reachable via the
+            // browser's separate WSS connection), producing an intermittent raw
+            // "Connection timed out" instead of the graceful AgentTimeoutException
+            // callers actually handle. This is the connect step only, distinct from
+            // dispatch()'s own $timeout param above, which governs how long to wait for
+            // a reply once already connected.
+            $config['timeout'] = (float) config('events.nats.connect_timeout', 5);
+
             $this->client = new Client(new Configuration($config));
         }
 
