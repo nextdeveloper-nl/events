@@ -112,6 +112,15 @@ abstract class AbstractAgentEventJob implements ShouldQueue
             return;
         }
 
+        if ($type === 'heartbeat') {
+            // Single-purpose, greppable line: uuid is inlined into the message text
+            // itself (not just the context array) so a plain text search for the
+            // uuid in Graylog finds it directly, without wading through the
+            // higher-volume 'envelope received'/'routing' traces that fire for
+            // every message type on every agent.
+            Log::info("[AgentHeartbeat] received from {$agentUuid}");
+        }
+
         match ($type) {
             'heartbeat'    => $this->updateHeartbeat($model, $payload),
             'capabilities' => $this->updateCapabilities($model, $payload['operations'] ?? []),
