@@ -79,6 +79,15 @@ abstract class AbstractAgentEventJob implements ShouldQueue
 
     private function route(string $type, string $agentUuid, array $payload): void
     {
+        if ($type === 'heartbeat') {
+            // Fires the instant a heartbeat is dequeued and handle()d, before any
+            // DB lookup - deliberately NOT gated on resolveAgentModel() finding a
+            // matching row, so it proves receipt independent of whether the
+            // uuid-to-VM match succeeds. uuid is inlined into the message text
+            // itself (not just the context array) for a plain-text Graylog search.
+            Log::info("[AgentHeartbeat] received from {$agentUuid}");
+        }
+
         $model = $this->resolveAgentModel($agentUuid);
 
         Log::info(static::class . ': routing', [
@@ -110,15 +119,6 @@ abstract class AbstractAgentEventJob implements ShouldQueue
                 'diagnosis'  => $this->diagnoseUnknownAgent($agentUuid),
             ]);
             return;
-        }
-
-        if ($type === 'heartbeat') {
-            // Single-purpose, greppable line: uuid is inlined into the message text
-            // itself (not just the context array) so a plain text search for the
-            // uuid in Graylog finds it directly, without wading through the
-            // higher-volume 'envelope received'/'routing' traces that fire for
-            // every message type on every agent.
-            Log::info("[AgentHeartbeat] received from {$agentUuid}");
         }
 
         match ($type) {
