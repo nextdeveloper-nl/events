@@ -44,7 +44,7 @@ abstract class AbstractAgentEventJob implements ShouldQueue
         // succeeds. Deliberately `info`, not `debug`: production log levels
         // commonly exclude debug, and this is the one line that answers
         // "did the platform receive this at all?" during a live investigation.
-        Log::info(static::class . ': envelope received', [
+        Log::info(static::class . ': envelope received from agent_uuid: ' . ($this->envelope['agent_uuid'] ?? 'unknown'), [
             'subject' => $this->subject,
             'type'    => $this->envelope['type'] ?? null,
             'agent_uuid' => $this->envelope['agent_uuid'] ?? null,
