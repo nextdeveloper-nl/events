@@ -4,22 +4,22 @@ Route::prefix('events')->group(
     function () {
         Route::prefix('available')->group(
             function () {
-                Route::get('/', 'Available\AvailableController@index');
-                Route::get('/actions', 'Available\AvailableController@getActions');
+                Route::get('/', 'Availables\AvailablesController@index');
+                Route::get('/actions', 'Availables\AvailablesController@getActions');
 
-                Route::get('{event_available}/tags ', 'Available\AvailableController@tags');
-                Route::post('{event_available}/tags ', 'Available\AvailableController@saveTags');
-                Route::get('{event_available}/addresses ', 'Available\AvailableController@addresses');
-                Route::post('{event_available}/addresses ', 'Available\AvailableController@saveAddresses');
+                Route::get('{event_available}/tags ', 'Availables\AvailablesController@tags');
+                Route::post('{event_available}/tags ', 'Availables\AvailablesController@saveTags');
+                Route::get('{event_available}/addresses ', 'Availables\AvailablesController@addresses');
+                Route::post('{event_available}/addresses ', 'Availables\AvailablesController@saveAddresses');
 
-                Route::get('/{event_available}/{subObjects}', 'Available\AvailableController@relatedObjects');
-                Route::get('/{event_available}', 'Available\AvailableController@show');
+                Route::get('/{event_available}/{subObjects}', 'Availables\AvailablesController@relatedObjects');
+                Route::get('/{event_available}', 'Availables\AvailablesController@show');
 
-                Route::post('/', 'Available\AvailableController@store');
-                Route::post('/{event_available}/do/{action}', 'Available\AvailableController@doAction');
+                Route::post('/', 'Availables\AvailablesController@store');
+                Route::post('/{event_available}/do/{action}', 'Availables\AvailablesController@doAction');
 
-                Route::patch('/{event_available}', 'Available\AvailableController@update');
-                Route::delete('/{event_available}', 'Available\AvailableController@destroy');
+                Route::patch('/{event_available}', 'Availables\AvailablesController@update');
+                Route::delete('/{event_available}', 'Availables\AvailablesController@destroy');
             }
         );
 
