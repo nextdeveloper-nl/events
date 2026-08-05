@@ -81,7 +81,7 @@ class NatsListenCommand extends Command
                 'payload'  => $payload,
             ]);
 
-            $messageId = is_array($payload) ? ($payload['id'] ?? 'unknown') : 'unknown';
+            $messageId = is_array($payload) ? ($payload['agent_uuid'] ?? 'unknown') : 'unknown';
             Log::debug('[NatsListenCommand] Message id: ' . $messageId);
 
             try {
