@@ -78,6 +78,7 @@ class NatsListenCommand extends Command
                 'subject'  => $receivedSubject,
                 'handler'  => $handlerClass,
                 'reply_to' => $replyTo,
+                'payload'  => $payload,
             ]);
 
             try {
