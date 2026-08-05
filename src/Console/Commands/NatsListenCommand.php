@@ -81,6 +81,9 @@ class NatsListenCommand extends Command
                 'payload'  => $payload,
             ]);
 
+            $messageId = is_array($payload) ? ($payload['id'] ?? 'unknown') : 'unknown';
+            Log::debug('[NatsListenCommand] Message id: ' . $messageId);
+
             try {
                 $handlerClass::dispatch($payload, $receivedSubject, $replyTo);
             } catch (\Throwable $e) {
