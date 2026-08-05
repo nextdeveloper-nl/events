@@ -80,9 +80,15 @@ abstract class AbstractAgentEventJob implements ShouldQueue
         }
 
         if (!$model) {
+            // diagnoseUnknownAgent() lets each module explain *why* the lookup
+            // missed (soft-deleted row? exists under a different scope? truly
+            // no such row?) without having to reproduce the issue live - see
+            // HandleVmAgentEventJob/HandleComputeAgentEventJob for the checks.
             Log::warning(static::class . ': unknown agent_uuid', [
                 'agent_uuid' => $agentUuid,
                 'type'       => $type,
+                'payload'    => $payload,
+                'diagnosis'  => $this->diagnoseUnknownAgent($agentUuid),
             ]);
             return;
         }
@@ -99,6 +105,18 @@ abstract class AbstractAgentEventJob implements ShouldQueue
      * DnsServer, ...) by its agent UUID. Return null if not found.
      */
     abstract protected function resolveAgentModel(string $agentUuid);
+
+    /**
+     * Called only when resolveAgentModel() returns null, to explain *why* in
+     * the 'unknown agent_uuid' warning - e.g. whether a row exists but is
+     * soft-deleted, or belongs to a different table, versus truly not
+     * existing anywhere. Default no-op (empty diagnosis) so modules that
+     * don't override it just get the bare warning as before.
+     */
+    protected function diagnoseUnknownAgent(string $agentUuid): array
+    {
+        return [];
+    }
 
     /**
      * Persist a heartbeat (last-seen timestamp, agent version, etc). Field
