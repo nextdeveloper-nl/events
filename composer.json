@@ -47,6 +47,9 @@
       "providers": [
         "NextDeveloper\\Events\\EventsServiceProvider"
       ]
+    },
+    "branch-alias": {
+      "dev-master": "9999.0.x-dev"
     }
   },
   "suggest": {}
