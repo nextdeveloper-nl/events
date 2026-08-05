@@ -38,6 +38,18 @@ abstract class AbstractAgentEventJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Unconditional receipt trace, logged before any validation/lookup can
+        // short-circuit - proves the queue worker actually picked up and ran
+        // this job for this message, independent of whether routing below
+        // succeeds. Deliberately `info`, not `debug`: production log levels
+        // commonly exclude debug, and this is the one line that answers
+        // "did the platform receive this at all?" during a live investigation.
+        Log::info(static::class . ': envelope received', [
+            'subject' => $this->subject,
+            'type'    => $this->envelope['type'] ?? null,
+            'agent_uuid' => $this->envelope['agent_uuid'] ?? null,
+        ]);
+
         if (!is_array($this->envelope) || !isset($this->envelope['type'], $this->envelope['agent_uuid'])) {
             Log::warning(static::class . ': malformed envelope', [
                 'subject'  => $this->subject,
@@ -68,6 +80,13 @@ abstract class AbstractAgentEventJob implements ShouldQueue
     private function route(string $type, string $agentUuid, array $payload): void
     {
         $model = $this->resolveAgentModel($agentUuid);
+
+        Log::info(static::class . ': routing', [
+            'agent_uuid' => $agentUuid,
+            'type'       => $type,
+            'resolved'   => $model !== null,
+            'model_id'   => $model->id ?? null,
+        ]);
 
         if ($model) {
             $this->onAnyEvent($model, $type, $payload);
