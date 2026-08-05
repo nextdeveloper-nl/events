@@ -74,7 +74,7 @@ class NatsListenCommand extends Command
         }
 
         $nats->subscribe($subject, function (array|string $payload, string $receivedSubject, ?string $replyTo) use ($handlerClass) {
-            Log::debug('[NatsListenCommand] Message received', [
+            Log::debug('[NatsListenCommand] Message received from subject: ' . $receivedSubject, [
                 'subject'  => $receivedSubject,
                 'handler'  => $handlerClass,
                 'reply_to' => $replyTo,
