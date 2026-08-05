@@ -87,6 +87,26 @@ class NatsAuthCalloutService
             if ($agent) {
                 Log::info('[NatsAuthCallout] Authenticated agent', ['type' => $type, 'uuid' => $agent->uuid]);
 
+                // $username is the identity the client itself declared (nats.UserInfo's
+                // user field on the agent side) - the same value it uses locally to build
+                // its own pub/sub subjects (e.g. "agent.vm." + agentUUID + ".evt"). $agent->uuid
+                // is the clean value resolved by matching agent_api_key in the DB, used here
+                // to build the *granted* subjects below. Authentication only checks the
+                // password, so these two can diverge (stray whitespace/char in the agent's
+                // locally cached identity, a stale config-drive, etc.) without auth ever
+                // failing - the agent connects fine and believes it's publishing successfully,
+                // but every message goes out on a subject its JWT doesn't actually grant pub
+                // access to, so NATS silently drops it server-side (async permissions
+                // violation, not a client-visible Publish() error). Flagged here because that
+                // failure mode is otherwise invisible on both sides.
+                if ($username !== null && $username !== $agent->uuid) {
+                    Log::warning('[NatsAuthCallout] Agent-claimed identity does not match its resolved uuid', [
+                        'type'          => $type,
+                        'claimed_uuid'  => $username,
+                        'resolved_uuid' => $agent->uuid,
+                    ]);
+                }
+
                 $pubSubjects = [
                     "agent.{$type}.{$agent->uuid}.evt",
                     "_INBOX.>",
