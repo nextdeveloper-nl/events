@@ -93,8 +93,8 @@ class Listeners extends Model
     'conditions' => 'array',
     'time_window' => 'array',
     'priority' => 'integer',
-    'communication_channel_ids' => 'array:integer',
-    'recipient_iam_account_ids' => 'array:integer',
+    'communication_channel_ids' => \NextDeveloper\Commons\Database\Casts\IntegerArray::class,
+    'recipient_iam_account_ids' => \NextDeveloper\Commons\Database\Casts\IntegerArray::class,
     ];
 
     /**
