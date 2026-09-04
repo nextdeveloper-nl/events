@@ -65,6 +65,13 @@ class AbstractListenersTransformer extends AbstractTransformer
             'created_at'  =>  $model->created_at,
             'updated_at'  =>  $model->updated_at,
             'deleted_at'  =>  $model->deleted_at,
+            'name'  =>  $model->name,
+            'is_active'  =>  $model->is_active,
+            'conditions'  =>  $model->conditions,
+            'time_window'  =>  $model->time_window,
+            'priority'  =>  $model->priority,
+            'communication_channel_ids'  =>  $model->communication_channel_ids,
+            'recipient_iam_account_ids'  =>  $model->recipient_iam_account_ids,
             ]
         );
     }
