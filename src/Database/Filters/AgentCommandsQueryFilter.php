@@ -17,7 +17,7 @@ class AgentCommandsQueryFilter extends AbstractQueryFilter
      * @var Builder
      */
     protected $builder;
-    
+
     public function agentType($value)
     {
         return $this->builder->where('agent_type', 'ilike', '%' . $value . '%');
@@ -28,25 +28,36 @@ class AgentCommandsQueryFilter extends AbstractQueryFilter
     {
         return $this->agentType($value);
     }
-        
+
+    public function agentUuid($value)
+    {
+        return $this->builder->where('agent_uuid', $value);
+    }
+
+    //  This is an alias function of agentUuid
+    public function agent_uuid($value)
+    {
+        return $this->agentUuid($value);
+    }
+
     public function operation($value)
     {
         return $this->builder->where('operation', 'ilike', '%' . $value . '%');
     }
 
-        
+
     public function status($value)
     {
         return $this->builder->where('status', 'ilike', '%' . $value . '%');
     }
 
-        
+
     public function error($value)
     {
         return $this->builder->where('error', 'ilike', '%' . $value . '%');
     }
 
-    
+
     public function sentAtStart($date)
     {
         return $this->builder->where('sent_at', '>=', $date);
@@ -188,7 +199,7 @@ class AgentCommandsQueryFilter extends AbstractQueryFilter
         }
     }
 
-    
+
     public function iamUserId($value)
     {
             $iamUser = \NextDeveloper\IAM\Database\Models\Users::where('uuid', $value)->first();
@@ -198,6 +209,6 @@ class AgentCommandsQueryFilter extends AbstractQueryFilter
         }
     }
 
-    
+
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
 }

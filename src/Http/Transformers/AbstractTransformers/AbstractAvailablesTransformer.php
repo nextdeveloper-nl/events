@@ -54,7 +54,7 @@ class AbstractAvailablesTransformer extends AbstractTransformer
      */
     public function transform(Availables $model)
     {
-            
+
         return $this->buildPayload(
             [
             'id'  =>  $model->uuid,

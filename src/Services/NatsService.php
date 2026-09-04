@@ -104,21 +104,38 @@ class NatsService
         $result   = null;
         $deadline = microtime(true) + $timeout;
 
-        // Subscribe to our temporary inbox before publishing
-        // The Basis NATS client passes a Payload object, not a raw string
-        $this->client()->subscribe($inbox, function (\Basis\Nats\Message\Payload|string $message) use (&$result) {
-            $result = json_decode((string) $message, true) ?? [];
-        });
+        try {
+            // Subscribe to our temporary inbox before publishing
+            // The Basis NATS client passes a Payload object, not a raw string
+            $this->client()->subscribe($inbox, function (\Basis\Nats\Message\Payload|string $message) use (&$result) {
+                $result = json_decode((string) $message, true) ?? [];
+            });
 
-        // Embed the inbox so the agent knows where to publish the result
-        $payload['reply_to'] = $inbox;
+            // Embed the inbox so the agent knows where to publish the result
+            $payload['reply_to'] = $inbox;
 
-        // Plain publish — no NATS replyTo header, avoids JetStream PubAck
-        $this->client()->publish($subject, json_encode($payload));
+            // Plain publish — no NATS replyTo header, avoids JetStream PubAck
+            $this->client()->publish($subject, json_encode($payload));
 
-        // Poll until the agent replies or we time out
-        while ($result === null && microtime(true) < $deadline) {
-            $this->client()->process(0.1);
+            // Poll until the agent replies or we time out
+            while ($result === null && microtime(true) < $deadline) {
+                $this->client()->process(0.1);
+            }
+        } catch (\Throwable $e) {
+            // Covers the lazy connect (raw TCP/TLS "Connection timed out" etc.) as well as
+            // subscribe/publish/process failures — none of these are the agent's fault, but
+            // callers only need to know "no result within budget", so surface them the same
+            // way as a reply timeout instead of letting a raw transport exception bubble up.
+            $this->client = null;
+
+            Log::warning('[NatsService] Dispatch failed before/while waiting for reply', [
+                'subject' => $subject,
+                'error'   => $e->getMessage(),
+            ]);
+
+            throw new AgentTimeoutException(
+                "Agent did not respond on [{$subject}] within {$timeout}s ({$e->getMessage()})"
+            );
         }
 
         if ($result === null) {
@@ -180,6 +197,16 @@ class NatsService
 
             // Restore port — it could be filtered if it's 0
             $config['port'] = (int) config('events.nats.server_port', 4222);
+
+            // Configuration's own default (1s) is tight for a WAN link doing a
+            // client-cert TLS handshake - occasional latency/broker-load spikes can hit
+            // it even when the broker itself is healthy (e.g. still reachable via the
+            // browser's separate WSS connection), producing an intermittent raw
+            // "Connection timed out" instead of the graceful AgentTimeoutException
+            // callers actually handle. This is the connect step only, distinct from
+            // dispatch()'s own $timeout param above, which governs how long to wait for
+            // a reply once already connected.
+            $config['timeout'] = (float) config('events.nats.connect_timeout', 5);
 
             $this->client = new Client(new Configuration($config));
         }

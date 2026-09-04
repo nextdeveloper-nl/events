@@ -74,11 +74,15 @@ class NatsListenCommand extends Command
         }
 
         $nats->subscribe($subject, function (array|string $payload, string $receivedSubject, ?string $replyTo) use ($handlerClass) {
-            Log::debug('[NatsListenCommand] Message received', [
+            Log::debug('[NatsListenCommand] Message received from subject: ' . $receivedSubject, [
                 'subject'  => $receivedSubject,
                 'handler'  => $handlerClass,
                 'reply_to' => $replyTo,
+                'payload'  => $payload,
             ]);
+
+            $messageId = is_array($payload) ? ($payload['agent_uuid'] ?? 'unknown') : 'unknown';
+            Log::debug('[NatsListenCommand] Message id: ' . $messageId);
 
             try {
                 $handlerClass::dispatch($payload, $receivedSubject, $replyTo);
