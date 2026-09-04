@@ -17,6 +17,23 @@ class Events
     public static function listenEvent($event, $job)
     {
         try {
+            //  event_listeners has no unique constraint on (event, callback) - only a
+            //  pkey on id - so the ON CONFLICT DO NOTHING below never actually conflicts
+            //  and every boot() call site that registers a listener (this runs on every
+            //  request) was inserting a fresh duplicate row forever. Events::fire()
+            //  dispatches the job once per matching row, so that duplication compounds
+            //  into dispatching the same job N times per event, N growing unbounded.
+            //  Checking first makes registration actually idempotent without needing a
+            //  schema change (migrations aren't used in this project).
+            $exists = DB::table('event_listeners')
+                ->where('event', $event)
+                ->where('callback', $job)
+                ->exists();
+
+            if ($exists) {
+                return;
+            }
+
             DB::insert(
                 'INSERT INTO event_listeners (event, callback) VALUES (?, ?) ON CONFLICT DO NOTHING',
                 [$event, $job],
