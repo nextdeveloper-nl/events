@@ -26,6 +26,13 @@ use NextDeveloper\Commons\Database\Traits\RunAsAdministrator;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property \Carbon\Carbon $deleted_at
+ * @property string $name
+ * @property boolean $is_active
+ * @property  $conditions
+ * @property  $time_window
+ * @property integer $priority
+ * @property array $communication_channel_ids
+ * @property array $recipient_iam_account_ids
  */
 class Listeners extends Model
 {
@@ -46,6 +53,13 @@ class Listeners extends Model
             'event',
             'callback',
             'iam_account_id',
+            'name',
+            'is_active',
+            'conditions',
+            'time_window',
+            'priority',
+            'communication_channel_ids',
+            'recipient_iam_account_ids',
     ];
 
     /**
@@ -74,6 +88,13 @@ class Listeners extends Model
     'created_at' => 'datetime',
     'updated_at' => 'datetime',
     'deleted_at' => 'datetime',
+    'name' => 'string',
+    'is_active' => 'boolean',
+    'conditions' => 'array',
+    'time_window' => 'array',
+    'priority' => 'integer',
+    'communication_channel_ids' => 'array:integer',
+    'recipient_iam_account_ids' => 'array:integer',
     ];
 
     /**
