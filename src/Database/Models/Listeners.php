@@ -93,8 +93,8 @@ class Listeners extends Model
     'conditions' => 'array',
     'time_window' => 'array',
     'priority' => 'integer',
-    'communication_channel_ids' => 'array:integer',
-    'recipient_iam_account_ids' => 'array:integer',
+    'communication_channel_ids' => \NextDeveloper\Commons\Database\Casts\IntegerArray::class,
+    'recipient_iam_account_ids' => \NextDeveloper\Commons\Database\Casts\IntegerArray::class,
     ];
 
     /**
@@ -127,10 +127,23 @@ class Listeners extends Model
     {
         parent::boot();
 
-        //  We create and add Observer even if we wont use it.
-        parent::observe(ListenersObserver::class);
-
         self::registerScopes();
+    }
+
+    /**
+     * Registers the observer once the model has finished booting.
+     *
+     * Registering it inside boot() instantiates the model while it is still booting,
+     * which Laravel 12+ rejects with a LogicException.
+     *
+     * @return void
+     */
+    protected static function booted()
+    {
+        parent::booted();
+
+        //  We create and add Observer even if we wont use it.
+        static::observe(ListenersObserver::class);
     }
 
     public static function registerScopes()
