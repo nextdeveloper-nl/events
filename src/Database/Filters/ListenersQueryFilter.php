@@ -105,6 +105,33 @@ class ListenersQueryFilter extends AbstractQueryFilter
         }
     }
 
+    
+    public function name($value)
+    {
+        return $this->builder->where('name', 'like', '%' . $value . '%');
+    }
+
+    public function isActive($value)
+    {
+        if(!is_bool($value)) {
+            $value = false;
+        }
+
+        return $this->builder->where('is_active', $value);
+    }
+
+    public function priority($value)
+    {
+        $operator = substr($value, 0, 1);
+
+        if ($operator != '<' || $operator != '>') {
+            $operator = '=';
+        } else {
+            $value = substr($value, 1);
+        }
+
+        return $this->builder->where('priority', $operator, $value);
+    }
 
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
 

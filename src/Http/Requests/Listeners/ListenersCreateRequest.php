@@ -15,6 +15,13 @@ class ListenersCreateRequest extends AbstractFormRequest
         return [
             'event' => 'required|string',
         'callback' => 'required|string',
+        'name' => 'nullable|string',
+        'is_active' => 'boolean',
+        'conditions' => 'nullable',
+        'time_window' => 'nullable',
+        'priority' => 'nullable|integer',
+        'communication_channel_ids' => 'nullable',
+        'recipient_iam_account_ids' => 'nullable',
         ];
     }
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE
