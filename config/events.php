@@ -1,6 +1,15 @@
 <?php
 
 return [
+    // Global scopes registered by the Events models' registerScopes(). AuthorizationScope makes the
+    // role's apply() (events-user / events-admin) actually filter queries. Added together with the Events roles.
+    'scopes' => [
+        'global' => [
+            '\NextDeveloper\IAM\Database\Scopes\AuthorizationScope',
+            '\NextDeveloper\Commons\Database\GlobalScopes\LimitScope',
+        ],
+    ],
+
     'general' => [
         'save_events' => env('EVENTS_CREATE_EVENTS', false),
     ],
