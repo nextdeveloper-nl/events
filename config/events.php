@@ -10,6 +10,17 @@ return [
         ],
     ],
 
+    // Event pushers (event_webhook / event_chat / event_message / event_inapp).
+    'pushers' => [
+        // Queue EventPusherJob (which decides whether a fired event becomes a delivery) runs on.
+        'queue' => env('EVENTS_PUSHER_QUEUE', 'default'),
+
+        // Pusher URLs must be https and resolve to a public address. These two switches exist for local
+        // development only, never enable them in production (SSRF).
+        'allow_insecure_http'  => env('EVENTS_PUSHER_ALLOW_HTTP', false),
+        'allow_private_hosts'  => env('EVENTS_PUSHER_ALLOW_PRIVATE_HOSTS', false),
+    ],
+
     'general' => [
         'save_events' => env('EVENTS_CREATE_EVENTS', false),
     ],

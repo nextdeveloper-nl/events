@@ -5,6 +5,7 @@ namespace NextDeveloper\Events\Services;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use NextDeveloper\Events\Jobs\EventPusherJob;
 use NextDeveloper\Events\Jobs\NatsPublisherJob;
 
 class Events
@@ -55,7 +56,14 @@ class Events
             self::createEvent($eventName);
         }
 
-        $listeners = DB::select('SELECT * FROM event_listeners WHERE event = ?', [$eventName]);
+        // Soft deleted listeners (deleted_at) and switched off ones (is_active) must not fire, and when several
+        // listeners match the lower priority number runs first. COALESCE keeps rows that predate these columns
+        // working: they have no priority (0) and is_active defaults to true.
+        $listeners = DB::select(
+            'SELECT * FROM event_listeners WHERE event = ? AND deleted_at IS NULL AND COALESCE(is_active, true) = true'
+            . ' ORDER BY COALESCE(priority, 0) ASC, id ASC',
+            [$eventName]
+        );
 
         $params = ['event' => $eventName];
 
@@ -78,7 +86,13 @@ class Events
             }
 
             try {
-                $job::dispatch($model, $params);
+                // EventPusherJob is the generic "hand this event to the listener's pusher" callback, so it
+                // also needs to know which listener row matched. Every other callback keeps ($model, $params).
+                if (is_a($job, EventPusherJob::class, true)) {
+                    $job::dispatch($model, $params, (int) $listener->id);
+                } else {
+                    $job::dispatch($model, $params);
+                }
             } catch (\Exception $e) {
                 Log::error(
                     __METHOD__ . ' | We have an exception while firing an event listener: '

@@ -4,6 +4,9 @@ namespace NextDeveloper\Events;
 
 use Illuminate\Console\Scheduling\Schedule;
 use NextDeveloper\Commons\AbstractServiceProvider;
+use NextDeveloper\Commons\Pushers\PusherFactory;
+use NextDeveloper\Events\Pushers\Drivers\EventChatPusher;
+use NextDeveloper\Events\Pushers\Drivers\EventWebhookPusher;
 
 /**
  * Class CommunicationServiceProvider
@@ -36,6 +39,7 @@ class EventsServiceProvider extends AbstractServiceProvider
         $this->bootChannelRoutes();
         $this->bootModelBindings();
         $this->bootLogger();
+        $this->bootPushers();
     }
 
     /**
@@ -48,6 +52,19 @@ class EventsServiceProvider extends AbstractServiceProvider
         $this->registerCommands();
 
         $this->mergeConfigFrom(__DIR__.'/../config/events.php', 'events');
+    }
+
+    /**
+     * Registers the event pushers with the Commons pusher factory. A Pushers row with one of these provider
+     * keys is delivered by the matching driver. (event_message / event_inapp need the Communication module and
+     * are registered by the main project.)
+     *
+     * @return void
+     */
+    public function bootPushers()
+    {
+        PusherFactory::register(EventWebhookPusher::provider(), EventWebhookPusher::class);
+        PusherFactory::register(EventChatPusher::provider(), EventChatPusher::class);
     }
 
     /**

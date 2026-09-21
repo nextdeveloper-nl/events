@@ -55,6 +55,9 @@ class AbstractListenersTransformer extends AbstractTransformer
     public function transform(Listeners $model)
     {
                                                 $iamAccountId = \NextDeveloper\IAM\Database\Models\Accounts::where('id', $model->iam_account_id)->first();
+        $commonPusherId = $model->common_pusher_id
+            ? \NextDeveloper\Commons\Database\Models\Pushers::where('id', $model->common_pusher_id)->first()
+            : null;
 
         return $this->buildPayload(
             [
@@ -72,6 +75,7 @@ class AbstractListenersTransformer extends AbstractTransformer
             'priority'  =>  $model->priority,
             'communication_channel_ids'  =>  $model->communication_channel_ids,
             'recipient_iam_account_ids'  =>  $model->recipient_iam_account_ids,
+            'common_pusher_id'  =>  $commonPusherId ? $commonPusherId->uuid : null,
             ]
         );
     }

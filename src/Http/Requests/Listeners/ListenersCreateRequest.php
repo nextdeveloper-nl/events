@@ -14,7 +14,7 @@ class ListenersCreateRequest extends AbstractFormRequest
     {
         return [
             'event' => 'required|string',
-        'callback' => 'required|string',
+        'callback' => 'required_without:common_pusher_id|string',
         'name' => 'nullable|string',
         'is_active' => 'boolean',
         'conditions' => 'nullable',
@@ -22,6 +22,7 @@ class ListenersCreateRequest extends AbstractFormRequest
         'priority' => 'nullable|integer',
         'communication_channel_ids' => 'nullable',
         'recipient_iam_account_ids' => 'nullable',
+        'common_pusher_id' => 'nullable|uuid|exists:common_pushers,uuid',
         ];
     }
     // EDIT AFTER HERE - WARNING: ABOVE THIS LINE MAY BE REGENERATED AND YOU MAY LOSE CODE

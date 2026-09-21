@@ -33,6 +33,7 @@ use NextDeveloper\Commons\Database\Traits\RunAsAdministrator;
  * @property integer $priority
  * @property array $communication_channel_ids
  * @property array $recipient_iam_account_ids
+ * @property integer $common_pusher_id
  */
 class Listeners extends Model
 {
@@ -60,6 +61,7 @@ class Listeners extends Model
             'priority',
             'communication_channel_ids',
             'recipient_iam_account_ids',
+            'common_pusher_id',
     ];
 
     /**
@@ -95,6 +97,7 @@ class Listeners extends Model
     'priority' => 'integer',
     'communication_channel_ids' => \NextDeveloper\Commons\Database\Casts\IntegerArray::class,
     'recipient_iam_account_ids' => \NextDeveloper\Commons\Database\Casts\IntegerArray::class,
+    'common_pusher_id' => 'integer',
     ];
 
     /**

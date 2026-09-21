@@ -106,6 +106,15 @@ class ListenersQueryFilter extends AbstractQueryFilter
     }
 
     
+    public function commonPusherId($value)
+    {
+        $pusher = \NextDeveloper\Commons\Database\Models\Pushers::where('uuid', $value)->first();
+
+        if ($pusher) {
+            return $this->builder->where('common_pusher_id', '=', $pusher->id);
+        }
+    }
+
     public function name($value)
     {
         return $this->builder->where('name', 'like', '%' . $value . '%');
