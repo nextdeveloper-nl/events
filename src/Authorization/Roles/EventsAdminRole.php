@@ -45,24 +45,18 @@ class EventsAdminRole extends AbstractRole implements IAuthorizationRole
     public function allowedOperations(): array
     {
         return [
-            // Available events — global catalog of events that can be listened to
+            // Available events — global catalog of events that can be listened to. Read-only for
+            // everyone, including admins: events must never be created, updated or deleted via the API.
             'events_available:read',
-            'events_available:create',
-            'events_available:update',
-            'events_available:delete',
             'event_available:read',
-            'event_available:create',
-            'event_available:update',
-            'event_available:delete',
 
-            // Listeners — callback is a PHP class dispatched globally by Events::fire(), so writes are admin-only
+            // Listeners — callback is a PHP class dispatched globally by Events::fire(), so writes are admin-only.
+            // Admin can add and remove listeners but never update one (update is deliberately not granted).
             'events_listeners:read',
             'events_listeners:create',
-            'events_listeners:update',
             'events_listeners:delete',
             'event_listeners:read',
             'event_listeners:create',
-            'event_listeners:update',
             'event_listeners:delete',
 
             // Agent commands — commands queued for on-host agents
