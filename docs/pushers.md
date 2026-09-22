@@ -29,8 +29,10 @@ Events::fire() -> event_listeners row (callback = EventPusherJob, common_pusher_
 `communication_channel_ids` and `recipient_iam_account_ids` (for `event_message` / `event_inapp`).
 Listeners can be created and deleted, never updated: delete and add a new one.
 
-A listener that belongs to an account only receives that account's events. A listener owned by the platform
-owner account receives every account's events.
+A listener with `iam_account_id` set only receives events of objects with the SAME `iam_account_id` — a
+mismatch, or an object with no account at all, never matches. A listener with `iam_account_id` null (a
+"system listener") only receives events of objects that have no `iam_account_id` at all — an account-owned
+object never matches a system listener either. There is no listener that receives every account's events.
 
 `conditions` - list of clauses, all must match:
 `[{"field": "data.object.status", "operator": "eq", "value": "open"}]`.

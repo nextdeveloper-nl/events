@@ -65,24 +65,22 @@ class EventPusherService
     }
 
     /**
-     * A listener that belongs to an account only ever sees that account's events. The platform owner account
-     * is the exception: it is the "global" listener that sees every account. Objects without an account are
-     * only visible to platform-owner listeners.
+     * A listener with iam_account_id set is account-specific: it only matches an object with the SAME
+     * iam_account_id. A listener with iam_account_id null is a system listener: it only matches an object that
+     * has no iam_account_id at all (a system-level object). An account-specific listener never matches an
+     * object with no account, and a system listener never matches an account-owned object — the two never
+     * cross, there is no "sees everything" listener.
      */
     private static function ownsEvent(Listeners $listener, Model $model): bool
     {
+        $modelAccountId = $model->iam_account_id ?? null;
+
         if ($listener->iam_account_id === null) {
-            return true;
+            return $modelAccountId === null;
         }
 
-        $owner = UserHelper::getLeoOwnerAccount();
-
-        if ($owner && (int) $listener->iam_account_id === (int) $owner->id) {
-            return true;
-        }
-
-        return ($model->iam_account_id ?? null) !== null
-            && (int) $model->iam_account_id === (int) $listener->iam_account_id;
+        return $modelAccountId !== null
+            && (int) $modelAccountId === (int) $listener->iam_account_id;
     }
 
     private static function skip(int $listenerId, string $reason): bool
