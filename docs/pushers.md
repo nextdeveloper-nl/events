@@ -18,6 +18,7 @@ Events::fire() -> event_listeners row (callback = EventPusherJob, common_pusher_
 | `event_chat` | short message to a chat incoming-webhook | `url` | `flavor` (`slack`, `mattermost`, `teams`, `discord`), `message_template`, `timeout`, `hourly_limit` |
 | `event_message` (main project) | email or SMS to members of the recipient accounts | - | `mode` (`email`/`sms`), `communication_channel_id`, `subject_template`, `body_template`, `hourly_limit` |
 | `event_inapp` (main project) | persistent notification in the panel inbox | - | `severity`, `title_template`, `message_template` |
+| `event_crm_opportunity` (main project) | creates a CRM Opportunity in a Campaign and drops it into that campaign's Flow pipeline at a stage | - | `crm_campaign_id` (required), `flow_stage_id`, `type`, `name_template`, `description_template`, `hourly_limit` |
 
 `{{path}}` placeholders in templates read the envelope with dot notation, e.g. `{{data.object.status}}`.
 
@@ -67,6 +68,14 @@ $key    = str_starts_with($secret, 'whsec_') ? base64_decode(substr($secret, 6))
 $expect = 'v1,' . base64_encode(hash_hmac('sha256', $signed, $key, true));
 // accept if hash_equals($expect, <any signature in the header>) and abs(time() - $timestamp) < 300
 ```
+
+## `event_crm_opportunity` details
+
+Needs the event's account to have a CRM account (`crm_accounts.iam_account_id`) and the target `crm_campaign_id`
+to already have a Flow pipeline provisioned (created with `campaign_type` / `flow_template_id`, see
+`CampaignsService::provisionFlow`). Idempotent per step, not all-or-nothing: the Opportunity is found again by
+a tag holding the event id before a new one is created, and the Flow item is found by object_type/object_id
+before a new one is created — a retry after a partial failure resumes instead of duplicating.
 
 ## Safety
 
