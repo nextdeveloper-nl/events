@@ -63,7 +63,9 @@ class NatsService
         $this->client()->subscribe($subject, function (\Basis\Nats\Message\Payload $message, ?string $replyTo) use ($callback, $subject) {
             $raw     = (string) $message;
             $payload = json_decode($raw, true) ?? $raw;
-            $callback($payload, $subject, $replyTo ?: null);
+            //  The subject the message was published on, not the one subscribed: under a wildcard
+            //  (`agent.status.*`, `fixlean.sensor.>`) the tokens it matched are what identify the sender.
+            $callback($payload, $message->subject ?: $subject, $replyTo ?: null);
         });
     }
 
