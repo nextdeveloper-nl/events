@@ -56,23 +56,98 @@ class NatsPublisherJob implements ShouldQueue
     //  a deploy) unserialize with the check disabled instead of an uninitialized-property error.
     private ?string $dispatchedUuid = null;
 
+    //  Short description of the code that fired the event (class@function:line chain). Jobs run
+    //  in a worker, far from the code that caused them, so this is the only way to tell later
+    //  who produced a stray event. Null for jobs queued before this property existed.
+    private ?string $origin = null;
+
+    //  When the job was dispatched (unix time). Lets the Published log show how long the job
+    //  waited in the queue; null for jobs queued before this property existed.
+    private ?int $dispatchedAt = null;
+
+    //  Plain model lifecycle verbs. Everything else is an action event (starting, started,
+    //  halted, ...) which gets extra logging because it is rare and the UI depends on it.
+    private const LIFECYCLE_EVENTS = ['saving', 'saved', 'creating', 'created', 'updating', 'updated'];
+
+    public static function isLifecycleEvent(string $eventName): bool
+    {
+        return in_array(strtok($eventName, ':'), self::LIFECYCLE_EVENTS, true);
+    }
+
     public function __construct(
         private readonly Model $model,
         private readonly array $params
     ) {
         $this->queue = config('events.nats.queue', 'default');
         $this->dispatchedUuid = $model->uuid ?? null;
+        $this->origin = self::describeCaller();
+        $this->dispatchedAt = time();
+    }
+
+    //  Walks the stack at dispatch time and keeps the first frames outside the event plumbing.
+    private static function describeCaller(): string
+    {
+        $frames = [];
+
+        foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 14) as $frame) {
+            $class = $frame['class'] ?? '';
+
+            if ($class === self::class || $class === \NextDeveloper\Events\Services\Events::class) {
+                continue;
+            }
+
+            $frames[] = $class . '@' . ($frame['function'] ?? '') . ':' . ($frame['line'] ?? '');
+
+            if (count($frames) >= 6) {
+                break;
+            }
+        }
+
+        return implode(' < ', $frames);
     }
 
     public function handle(NatsService $nats): void
     {
+        $eventName = (string) ($this->params['event'] ?? '');
+        $isAction  = !self::isLifecycleEvent($eventName);
+
+        if ($isAction) {
+            Log::info('[NatsPublisherJob] Handling action event', [
+                'event' => $eventName,
+                'lag_seconds' => $this->dispatchedAt !== null ? time() - $this->dispatchedAt : null,
+                'model' => get_class($this->model),
+                'uuid'  => $this->model->uuid ?? null,
+            ]);
+        }
+
+        //  A row that is soft-deleted when the job runs must not be pushed to browsers as a live
+        //  update (deleting/deleted/restore events still go out). Log who fired it.
+        if (method_exists($this->model, 'trashed') && $this->model->trashed()
+            && !preg_match('/^(deleting|deleted|restoring|restored|force-?deleted):/', $eventName)) {
+            Log::warning('[NatsPublisherJob] Skipping event for soft-deleted model', [
+                'event'  => $eventName,
+                'model'  => get_class($this->model),
+                'uuid'   => $this->model->uuid ?? null,
+                'origin' => $this->origin,
+            ]);
+            return;
+        }
+
         $accountUuid = $this->resolveAccountUuid();
 
         if ($accountUuid === null) {
-            Log::debug('[NatsPublisherJob] Skipping model without iam_account_id', [
+            $context = [
                 'model' => get_class($this->model),
                 'event' => $this->params['event'] ?? null,
-            ]);
+            ];
+
+            //  Action events are rare and the UI depends on them, so a skip is worth a warning.
+            if ($isAction) {
+                Log::warning('[NatsPublisherJob] Skipping model without iam_account_id', $context);
+            } else {
+                Log::debug('[NatsPublisherJob] Skipping model without iam_account_id', $context);
+            }
+
             return;
         }
 
@@ -96,6 +171,13 @@ class NatsPublisherJob implements ShouldQueue
             'subject' => "client.{$accountUuid}.evt",
             'event'   => $this->params['event'] ?? null,
             'model'   => class_basename($this->model),
+            'lag_seconds' => $this->dispatchedAt !== null ? time() - $this->dispatchedAt : null,
+            //  What was actually pushed: the identity and state of the published object, so a
+            //  message the UI shows can be traced back to the exact row it came from.
+            'object_id'         => $payload['payload']['object']['id'] ?? null,
+            'object_status'     => $payload['payload']['object']['status'] ?? null,
+            'object_updated_at' => $payload['payload']['object']['updated_at'] ?? null,
+            'object_deleted_at' => $payload['payload']['object']['deleted_at'] ?? null,
             'uuid'    => $this->model->uuid ?? null,
             'deleted' => method_exists($this->model, 'trashed') ? $this->model->trashed() : null,
         ]);

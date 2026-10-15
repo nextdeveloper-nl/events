@@ -87,7 +87,25 @@ class Events
             ]);
         }
 
-        if (config('events.nats.enabled', false) && !$isTrashedModel && !self::isOmitted($eventName, $model)) {
+        $natsEnabled = config('events.nats.enabled', false);
+        $natsOmitted = $natsEnabled && self::isOmitted($eventName, $model);
+
+        //  Action events (starting/started/halting/halted/...) are the ones the UI relies on and the
+        //  ones that went missing, so leave a trace of what happened to them. Plain model lifecycle
+        //  events are far too frequent to log (tens of thousands per hour).
+        if (!NatsPublisherJob::isLifecycleEvent($eventName)) {
+            Log::info('[Events::fire] NATS decision', [
+                'event'    => $eventName,
+                'model'    => get_class($model),
+                'uuid'     => $model->uuid ?? null,
+                'enabled'  => (bool) $natsEnabled,
+                'omitted'  => (bool) $natsOmitted,
+                'trashed'  => (bool) $isTrashedModel,
+                'dispatch' => $natsEnabled && !$natsOmitted && !$isTrashedModel,
+            ]);
+        }
+
+        if ($natsEnabled && !$isTrashedModel && !$natsOmitted) {
             try {
                 NatsPublisherJob::dispatch($model, $params);
             } catch (\Throwable $e) {
