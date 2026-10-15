@@ -52,7 +52,9 @@ class NatsPublisherJob implements ShouldQueue
     //  Identity of the model at dispatch time. SerializesModels only keeps the primary key
     //  and reloads the row in the worker, so we remember the uuid separately to verify that
     //  the worker publishes the same object that fired the event.
-    private ?string $dispatchedUuid;
+    //  Defaults to null so jobs serialized before this property existed (still queued during
+    //  a deploy) unserialize with the check disabled instead of an uninitialized-property error.
+    private ?string $dispatchedUuid = null;
 
     public function __construct(
         private readonly Model $model,
