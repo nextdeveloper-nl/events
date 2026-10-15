@@ -49,11 +49,17 @@ class NatsPublisherJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    //  Identity of the model at dispatch time. SerializesModels only keeps the primary key
+    //  and reloads the row in the worker, so we remember the uuid separately to verify that
+    //  the worker publishes the same object that fired the event.
+    private ?string $dispatchedUuid;
+
     public function __construct(
         private readonly Model $model,
         private readonly array $params
     ) {
         $this->queue = config('events.nats.queue', 'default');
+        $this->dispatchedUuid = $model->uuid ?? null;
     }
 
     public function handle(NatsService $nats): void
@@ -68,6 +74,18 @@ class NatsPublisherJob implements ShouldQueue
             return;
         }
 
+        //  Never publish an object other than the one that fired the event.
+        if ($this->dispatchedUuid !== null && ($this->model->uuid ?? null) !== $this->dispatchedUuid) {
+            Log::error('[NatsPublisherJob] Restored model differs from the dispatched one, not publishing', [
+                'event'           => $this->params['event'] ?? null,
+                'model'           => get_class($this->model),
+                'dispatched_uuid' => $this->dispatchedUuid,
+                'restored_uuid'   => $this->model->uuid ?? null,
+                'restored_id'     => $this->model->getKey(),
+            ]);
+            return;
+        }
+
         $payload = $this->buildPayload($accountUuid);
 
         $nats->publish("client.{$accountUuid}.evt", $payload);
@@ -76,6 +94,8 @@ class NatsPublisherJob implements ShouldQueue
             'subject' => "client.{$accountUuid}.evt",
             'event'   => $this->params['event'] ?? null,
             'model'   => class_basename($this->model),
+            'uuid'    => $this->model->uuid ?? null,
+            'deleted' => method_exists($this->model, 'trashed') ? $this->model->trashed() : null,
         ]);
     }
 
