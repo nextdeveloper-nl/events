@@ -17,7 +17,19 @@ use NextDeveloper\Events\Exceptions\AgentTimeoutException;
  */
 class NatsService
 {
+    //  A publish-only client never answers the broker's PINGs, and the broker eventually closes
+    //  such a connection without the next write noticing. So a reused connection is checked with
+    //  ping() after it has been idle for KEEPALIVE_IDLE_SECONDS, and replaced outright after
+    //  RECYCLE_AFTER_SECONDS or MAX_PUBLISHES_PER_CONNECTION, whichever comes first.
+    private const KEEPALIVE_IDLE_SECONDS = 15;
+    private const RECYCLE_AFTER_SECONDS = 60;
+    private const MAX_PUBLISHES_PER_CONNECTION = 1000;
+
     private ?Client $client = null;
+
+    private float $connectedAt = 0.0;
+    private float $lastUsedAt = 0.0;
+    private int $publishCount = 0;
 
     public function publish(string $subject, array $payload): void
     {
@@ -25,14 +37,20 @@ class NatsService
             return;
         }
 
-        $encoded = json_encode($payload);
+        //  Invalid UTF-8 (binary-ish fields in a model) makes json_encode() return false, which
+        //  used to surface as a TypeError and a lost event. Substitute the bad bytes instead.
+        $encoded = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR);
 
         try {
-            $this->execute(fn () => $this->client()->publish($subject, $encoded));
+            $this->execute(function () use ($subject, $encoded) {
+                $this->refreshConnection();
+                $this->client()->publish($subject, $encoded);
+            });
+            $this->markUsed();
             return;
         } catch (\Throwable $e) {
             // Free the broken socket so the reconnect attempt gets a fresh FD.
-            $this->client = null;
+            $this->dropClient();
 
             Log::warning('[NatsService] Publish failed, retrying with fresh connection', [
                 'subject' => $subject,
@@ -43,8 +61,9 @@ class NatsService
         // Single retry with a freshly opened connection.
         try {
             $this->execute(fn () => $this->client()->publish($subject, $encoded));
+            $this->markUsed();
         } catch (\Throwable $e) {
-            $this->client = null;
+            $this->dropClient();
 
             Log::error('[NatsService] Failed to publish after retry', [
                 'subject' => $subject,
@@ -182,6 +201,60 @@ class NatsService
         }
     }
 
+    /**
+     * Keep a long-lived connection healthy between publishes (queue workers reuse one service
+     * instance for thousands of jobs, so a connection is opened once instead of once per job).
+     * A connection that holds subscriptions - the nats:listen command - is never recycled.
+     */
+    private function refreshConnection(): void
+    {
+        if ($this->client === null || $this->client->getSubscriptions() !== []) {
+            return;
+        }
+
+        $now = microtime(true);
+
+        if (($now - $this->connectedAt) > self::RECYCLE_AFTER_SECONDS
+            || $this->publishCount >= self::MAX_PUBLISHES_PER_CONNECTION) {
+            $this->dropClient();
+            return;
+        }
+
+        if (($now - $this->lastUsedAt) > self::KEEPALIVE_IDLE_SECONDS) {
+            try {
+                if (!$this->client->ping()) {
+                    $this->dropClient();
+                }
+            } catch (\Throwable $e) {
+                $this->dropClient();
+            }
+        }
+    }
+
+    private function markUsed(): void
+    {
+        $this->lastUsedAt = microtime(true);
+        $this->publishCount++;
+    }
+
+    /**
+     * Close the socket (so its file descriptor is released at once instead of whenever the
+     * garbage collector gets to it) and forget the client; the next use opens a new one.
+     */
+    private function dropClient(): void
+    {
+        if ($this->client !== null) {
+            try {
+                $this->client->disconnect();
+            } catch (\Throwable $e) {
+                // The connection is already broken; there is nothing more to close.
+            }
+        }
+
+        $this->client = null;
+        $this->publishCount = 0;
+    }
+
     private function client(): Client
     {
         if ($this->client === null) {
@@ -211,6 +284,9 @@ class NatsService
             $config['timeout'] = (float) config('events.nats.connect_timeout', 5);
 
             $this->client = new Client(new Configuration($config));
+            $this->connectedAt = microtime(true);
+            $this->lastUsedAt = $this->connectedAt;
+            $this->publishCount = 0;
         }
 
         return $this->client;

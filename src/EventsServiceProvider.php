@@ -52,6 +52,12 @@ class EventsServiceProvider extends AbstractServiceProvider
         $this->registerCommands();
 
         $this->mergeConfigFrom(__DIR__.'/../config/events.php', 'events');
+
+        //  One NatsService per process, not one per resolution. A queue worker resolves it for
+        //  every NatsPublisherJob; as a plain binding each job opened its own TLS connection to
+        //  the broker (slow, and the source of the 'Connection timed out' / FD_SETSIZE errors).
+        //  Request-scoped containers still get a fresh instance per request.
+        $this->app->singleton(\NextDeveloper\Events\Services\NatsService::class);
     }
 
     /**
