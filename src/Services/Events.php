@@ -69,7 +69,25 @@ class Events
 
         // Push the transformed model to the account's NATS subject so browser
         // clients receive real-time updates without registering a listener.
-        if (config('events.nats.enabled', false) && !self::isOmitted($eventName, $model)) {
+        //  A soft-deleted object must not keep pushing live updates to browser clients.
+        //  The 'deleting'/'deleted' events (and restore) are still allowed through so the
+        //  UI learns about the removal itself. Anything else firing on a trashed model is
+        //  logged with its caller so the source of the stray event can be tracked down.
+        $isTrashedModel = method_exists($model, 'trashed') && $model->trashed()
+            && !preg_match('/^(deleting|deleted|restoring|restored|force-?deleted):/', $eventName);
+
+        if ($isTrashedModel) {
+            Log::warning('[Events::fire] Skipping NATS publish for soft-deleted model', [
+                'event'  => $eventName,
+                'model'  => get_class($model),
+                'uuid'   => $model->uuid ?? null,
+                'caller' => collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 8))
+                    ->map(fn ($f) => ($f['class'] ?? '') . '@' . ($f['function'] ?? '') . ':' . ($f['line'] ?? ''))
+                    ->implode(' < '),
+            ]);
+        }
+
+        if (config('events.nats.enabled', false) && !$isTrashedModel && !self::isOmitted($eventName, $model)) {
             try {
                 NatsPublisherJob::dispatch($model, $params);
             } catch (\Throwable $e) {
