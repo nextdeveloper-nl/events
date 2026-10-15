@@ -51,7 +51,9 @@ class NatsCommandHandlerJob implements ShouldQueue
         private readonly string $subject,
         private readonly ?string $replyTo = null
     ) {
-        $this->queue = config('events.nats.queue', 'default');
+        //  Stays on 'default' (its previous behaviour). Commands can run arbitrary actions for a long
+        //  time, so they must not share the 'nats' queue that NatsPublisherJob needs to stay quick.
+        $this->queue = 'default';
     }
 
     public function handle(NatsService $nats): void

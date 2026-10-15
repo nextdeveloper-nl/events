@@ -65,6 +65,12 @@ class NatsPublisherJob implements ShouldQueue
     //  waited in the queue; null for jobs queued before this property existed.
     private ?int $dispatchedAt = null;
 
+    //  Fixed queue name for NATS publishing. It is deliberately not configurable: a NATS_QUEUE
+    //  override in .env once could (and in production nearly did) put these jobs back on
+    //  'default', behind tens of millions of unrelated jobs. The worker for it is
+    //  [program:nats] in the main project's .docker/supervisord.conf.
+    public const QUEUE = 'nats';
+
     //  Plain model lifecycle verbs. Everything else is an action event (starting, started,
     //  halted, ...) which gets extra logging because it is rare and the UI depends on it.
     private const LIFECYCLE_EVENTS = ['saving', 'saved', 'creating', 'created', 'updating', 'updated'];
@@ -78,7 +84,7 @@ class NatsPublisherJob implements ShouldQueue
         private readonly Model $model,
         private readonly array $params
     ) {
-        $this->queue = config('events.nats.queue', 'default');
+        $this->queue = self::QUEUE;
         $this->dispatchedUuid = $model->uuid ?? null;
         $this->origin = self::describeCaller();
         $this->dispatchedAt = time();

@@ -49,8 +49,8 @@ return [
         'tls_key'  => env('NATS_TLS_KEY'),
         'tls_ca'   => env('NATS_TLS_CA'),
 
-        // Queue to dispatch NatsPublisherJob on
-        'queue'    => env('NATS_QUEUE', 'default'),
+        // NatsPublisherJob always runs on the fixed queue 'nats' (NatsPublisherJob::QUEUE); it is no
+        // longer configurable here. NATS_QUEUE is ignored.
 
         // Account NKey keypair for signing auth callout responses
         // Generate with: php artisan events:nats-keygen
