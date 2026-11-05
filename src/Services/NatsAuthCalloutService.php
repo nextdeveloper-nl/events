@@ -152,6 +152,11 @@ class NatsAuthCalloutService
                 foreach ($accountUuids as $accountUuid) {
                     $subs[] = "client.{$accountUuid}.evt";
                     $subs[] = "client.{$accountUuid}.{$userUuid}.evt";
+
+                    // Live command history (published by Commons CommandLogsService::publish): only the user's OWN commands,
+                    // never the account wide ones, so a member cannot watch what other members do (same rule as the REST list).
+                    // The platform-wide platform.commands is deliberately not granted to browsers.
+                    $subs[] = "client.{$accountUuid}.{$userUuid}.commands";
                 }
 
                 // Allow the client to subscribe to live telemetry for every VM
