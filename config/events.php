@@ -23,6 +23,17 @@ return [
 
     'general' => [
         'save_events' => env('EVENTS_CREATE_EVENTS', false),
+
+        // Events written to the log on every fire (with model + caller backtrace). Supports * wildcards.
+        'log_events' => [
+            'deleted:*',
+            'delete-failed:*',
+        ],
+
+        // Set to false (EVENTS_DISPATCH_LISTENERS=false) to stop Events::fire from running listeners and
+        // NATS publishes, e.g. on a dev machine that shares the production database. Always off under
+        // APP_ENV=testing regardless of this value.
+        'dispatch_listeners' => env('EVENTS_DISPATCH_LISTENERS', true),
     ],
 
     'nats' => [

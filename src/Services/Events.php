@@ -56,6 +56,32 @@ class Events
             self::createEvent($eventName);
         }
 
+        //  Audit trail: events matching events.general.log_events (e.g. 'deleted:*') are logged with
+        //  the model and a short caller backtrace, so a stray event (like a 'deleted' mail for a VM
+        //  that was never deleted) can be traced back to whatever fired it. Not logged for every event
+        //  on purpose - heartbeats/updates fire many times a second.
+        if (self::matchesAny($eventName, config('events.general.log_events', []))) {
+            Log::info('[Events::fire] Event fired', [
+                'event'  => $eventName,
+                'model'  => get_class($model),
+                'id'     => $model->id ?? null,
+                'uuid'   => $model->uuid ?? null,
+                'env'    => app()->environment(),
+                'host'   => gethostname(),
+                'caller' => collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10))
+                    ->map(fn ($f) => ($f['class'] ?? '') . '@' . ($f['function'] ?? '') . ':' . ($f['line'] ?? ''))
+                    ->implode(' < '),
+            ]);
+        }
+
+        //  Tests run against real data and the real event_listeners table, so firing here would run
+        //  production listeners (customer mails, NATS pushes) from a test process. Listeners and NATS
+        //  are skipped under APP_ENV=testing, or whenever events.general.dispatch_listeners is false.
+        if (app()->environment('testing') || !config('events.general.dispatch_listeners', true)) {
+            Log::debug('[Events::fire] Listener dispatch disabled, skipping: ' . $eventName);
+            return;
+        }
+
         // Soft deleted listeners (deleted_at) and switched off ones (is_active) must not fire, and when several
         // listeners match the lower priority number runs first. COALESCE keeps rows that predate these columns
         // working: they have no priority (0) and is_active defaults to true.
@@ -149,6 +175,21 @@ class Events
                 return;
             }
         }
+    }
+
+    /**
+     * Whether the event name matches any of the patterns (exact string or * wildcard).
+     */
+    private static function matchesAny(string $eventName, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/';
+            if (preg_match($regex, $eventName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
