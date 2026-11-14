@@ -40,6 +40,26 @@ class EventWebhookPusher extends AbstractPusher
         return 'event_webhook';
     }
 
+    /**
+     * Self-description used by GET /commons/pushers/providers.
+     */
+    public static function definition(): array
+    {
+        return array_merge(parent::definition(), [
+            'label'           => 'Event Webhook',
+            'description'     => 'Delivers an event to a customer URL as a signed (Standard Webhooks) webhook.',
+            'is_internal'     => false,
+            'requires_url'    => true,
+            'requires_token'  => true,
+            'supports_auth'   => true,
+            'metadata_fields' => [
+                ['key' => 'previous_secret', 'type' => 'string', 'required' => false, 'label' => 'Previous secret (rotation)'],
+                ['key' => 'timeout', 'type' => 'integer', 'required' => false, 'label' => 'Timeout (seconds)', 'default' => 15],
+                ['key' => 'hourly_limit', 'type' => 'integer', 'required' => false, 'label' => 'Hourly limit'],
+            ],
+        ]);
+    }
+
     public function send(PusherLogs $log, Pushers $pusher): PusherResult
     {
         if (empty($pusher->token)) {

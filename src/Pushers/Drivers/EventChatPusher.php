@@ -35,6 +35,27 @@ class EventChatPusher extends AbstractPusher
         return 'event_chat';
     }
 
+    /**
+     * Self-description used by GET /commons/pushers/providers.
+     */
+    public static function definition(): array
+    {
+        return array_merge(parent::definition(), [
+            'label'           => 'Event Chat',
+            'description'     => 'Posts a message about an event to a chat incoming-webhook.',
+            'is_internal'     => false,
+            'requires_url'    => true,
+            'requires_token'  => false,
+            'supports_auth'   => false,
+            'metadata_fields' => [
+                ['key' => 'flavor', 'type' => 'enum', 'required' => false, 'label' => 'Chat flavor', 'options' => ['slack', 'mattermost', 'teams', 'discord'], 'default' => 'slack'],
+                ['key' => 'message_template', 'type' => 'text', 'required' => false, 'label' => 'Message template'],
+                ['key' => 'timeout', 'type' => 'integer', 'required' => false, 'label' => 'Timeout (seconds)'],
+                ['key' => 'hourly_limit', 'type' => 'integer', 'required' => false, 'label' => 'Hourly limit'],
+            ],
+        ]);
+    }
+
     public function send(PusherLogs $log, Pushers $pusher): PusherResult
     {
         if (!$this->isWithinHourlyLimit($pusher)) {
